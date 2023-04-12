@@ -7,14 +7,3 @@ typechain-types
 
 # Hardhat files
 cache
-# !client/
-# client/*
-# !client/src/
-# client/src/*
-# !client/src/*/
-client/src/artifacts/*
-!client/src/artifacts/contracts
-client/src/artifacts/contracts/*
-!client/src/artifacts/contracts/Greeter.sol
-client/src/artifacts/contracts/Greeter.sol/*
-!client/src/artifacts/contracts/Greeter.sol/Greeter.json

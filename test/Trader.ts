@@ -20,15 +20,13 @@ const vthoAbi = require("../abis/ERC20.json");
 // const vthoFaucetAddr = "0x4f6FC409e1e2D33843Cf4982d414C1Dd0879277e";
 const uniAddr = process.env.VEXCHANGE_UNI_ROUTER_ADDRESS; // This will work with a fork of testnet
 
-describe("Greeter contract", function () {
+describe("Trader contract", function () {
   const VTHO_DECIMALS = 18;
 
   let faucet, deployer, keeper, alice, bob;
   let vtho;
-  let greeter;
+  let trader;
   let snapshotId;
-
-  // console.log({ vthoAddr, vthoFaucetAddr });
 
   before(async () => {
     [faucet, deployer, keeper, alice, bob] = await getSigners();
@@ -64,10 +62,10 @@ describe("Greeter contract", function () {
     //   params: [vthoFaucetAddr],
     // });
 
-    const Greeter = await getContractFactory("Greeter");
-    greeter = await Greeter.connect(deployer).deploy(vtho.address, uniAddr);
-    await greeter.deployed();
-    expect(await vtho.balanceOf(greeter.address)).to.equal(0);
+    const Trader = await getContractFactory("Trader");
+    trader = await Trader.connect(deployer).deploy(vtho.address, uniAddr);
+    await trader.deployed();
+    expect(await vtho.balanceOf(trader.address)).to.equal(0);
 
     snapshotId = await provider.request({ method: "evm_snapshot", params: [] });
   });
@@ -78,7 +76,7 @@ describe("Greeter contract", function () {
   });
 
   it("should set the constructor args to the supplied values", async function () {
-    expect(await greeter.owner()).to.equal(deployer.address);
+    expect(await trader.owner()).to.equal(deployer.address);
   });
 
   describe("pull method", function () {
@@ -88,12 +86,12 @@ describe("Greeter contract", function () {
       const amount = parseUnits("50.0", await vtho.decimals());
       console.log({ amount });
       const aliceBalance = await vtho.balanceOf(alice.address);
-      const greeterBalance = await vtho.balanceOf(greeter.address);
+      const greeterBalance = await vtho.balanceOf(trader.address);
       expect(greeterBalance).to.equal(0);
       console.log({ aliceBalance, greeterBalance });
 
-      await vtho.connect(alice).approve(greeter.address, amount);
-      await greeter.connect(keeper).pull(alice.address, amount, 20);
+      await vtho.connect(alice).approve(trader.address, amount);
+      await trader.connect(keeper).pull(alice.address, amount, 20);
 
       // Veify correct balances
       // expect(await vtho.balanceOf(greeter.address)).to.equal(amount);
@@ -101,7 +99,7 @@ describe("Greeter contract", function () {
         aliceBalance.sub(amount)
       );
       // expect(await greeter.balanceOf(alice.address)).to.equal(amount);
-      expect(await vtho.balanceOf(greeter.address)).to.equal(
+      expect(await vtho.balanceOf(trader.address)).to.equal(
         greeterBalance.add(amount)
       );
     });

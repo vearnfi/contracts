@@ -5,13 +5,11 @@ import "hardhat/console.sol";
 import { IERC20 } from "../interfaces/IERC20.sol";
 import { IUniswapV2Router02 } from "../interfaces/IUniswapV2Router02.sol";
 
-// TODO: change name to Aggregator
-contract Greeter {
+contract Trader {
   IERC20 public VTHO;
   IUniswapV2Router02 public UniswapV2Router02;
   address payable public owner;
   // address public exchangeRouter;
-  // mapping(address => uint256) public balances;
 
   event Deposit(address from, uint256 amount);
   event Withdraw(address to, uint256 amount);
@@ -26,27 +24,26 @@ contract Greeter {
 	/// the user has to give allowance on the VTHO contract.
   /// @param amountIn The amount of VTHO pulled from the user's address.
 	function pull(address payable sender, uint256 amountIn, uint256 minRate) external {
-		require(amountIn > 0, "Greeter: Invalid amount");
-		require(VTHO.balanceOf(sender) > amountIn, "Greeter: Insufficient amount");
+		require(amountIn > 0, "Trader: Invalid amount");
+		require(VTHO.balanceOf(sender) > amountIn, "Trader: Insufficient amount");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
-		// balances[sender] += amountIn;
 
     // TODO: substract FEE and transaction cost
 
-		require(VTHO.transferFrom(sender, address(this), amountIn), "Greeter: Pull failed");
+		require(VTHO.transferFrom(sender, address(this), amountIn), "Trader: Pull failed");
 		emit Deposit(sender, amountIn);
 
     uint256 amountOutMin = amountIn / minRate;
 
     require(
         VTHO.approve(address(UniswapV2Router02), amountIn),
-        "Greeter: approve failed."
+        "Trader: approve failed."
     );
 
     // amountOutMin must be retrieved from an oracle of some kind
     address[] memory path = new address[](2);
     path[0] = address(VTHO);
-    path[1] = UniswapV2Router02.WETH(); // Throws
+    path[1] = UniswapV2Router02.WETH();
     UniswapV2Router02.swapExactTokensForETH(
       amountIn,
       amountOutMin,

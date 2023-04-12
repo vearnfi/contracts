@@ -1,10 +1,8 @@
 # Getting started
 
 ```
-git clone git@github.com:fede-rodes/hardhat-svelte-boilerplate.git
-cd hardhat-svelte-boilerplate
-npm i
-cd svelte
+clone repo
+cd into project
 npm i
 cp ./env.localhost ./env
 ```
@@ -17,7 +15,7 @@ npx hardhat node
 
 (This will start a HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/)
 
-On a new terminal, deploy and instance of the Greeter.sol contract
+On a new terminal, deploy and instance of the Trader.sol contract
 
 ```
 npx hardhat run scripts/deploy.ts --network localhost
@@ -38,6 +36,7 @@ Connect with MetaMask via `Localhost 8545` network
 
 ```
 npx hardhat run scripts/deploy.ts --network <network-name>
+npx hardhat run scripts/deploy.ts --network vechain
 ```
 
 # How the project was setup
