@@ -5,6 +5,8 @@ import "hardhat/console.sol";
 import { IERC20 } from "../interfaces/IERC20.sol";
 import { IUniswapV2Router02 } from "../interfaces/IUniswapV2Router02.sol";
 
+// TODO: we should be able to add server routers and choose one when calling
+// the swap method
 contract Trader {
   IERC20 public VTHO;
   IUniswapV2Router02 public UniswapV2Router02;
@@ -23,7 +25,11 @@ contract Trader {
 	/// @notice Pull VTHO from user's wallet. Before pulling though,
 	/// the user has to give allowance on the VTHO contract.
   /// @param amountIn The amount of VTHO pulled from the user's address.
-	function pull(address payable sender, uint256 amountIn, uint256 minRate) external {
+	function swap(
+    address payable sender,
+    uint256 amountIn,
+    uint256 minRate
+  ) external {
 		require(amountIn > 0, "Trader: Invalid amount");
 		require(VTHO.balanceOf(sender) > amountIn, "Trader: Insufficient amount");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");

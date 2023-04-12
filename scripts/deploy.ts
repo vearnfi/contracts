@@ -1,7 +1,7 @@
 import hre from "hardhat";
 
 const VTHO_CONTRACT_ADDRESS = process.env.VTHO_CONTRACT_ADDRESS;
-const VEXCHANGE_UNI_ROUTER_ADDRESS = process.env.VEXCHANGE_UNI_ROUTER_ADDRESS;
+const VEROCKET_UNI_ROUTER_ADDRESS = process.env.VEROCKET_UNI_ROUTER_ADDRESS;
 
 async function main() {
   console.log("Deploying contract...");
@@ -15,7 +15,7 @@ async function main() {
   const Trader = await hre.thor.getContractFactory("Trader");
   const trader = await Trader.connect(deployer).deploy(
     VTHO_CONTRACT_ADDRESS,
-    VEXCHANGE_UNI_ROUTER_ADDRESS
+    VEROCKET_UNI_ROUTER_ADDRESS
   );
 
   await trader.deployed();

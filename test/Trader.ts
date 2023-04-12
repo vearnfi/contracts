@@ -18,7 +18,7 @@ const vthoAbi = require("../abis/ERC20.json");
 
 // const vthoAddr = "0x0000000000000000000000000000456E65726779";
 // const vthoFaucetAddr = "0x4f6FC409e1e2D33843Cf4982d414C1Dd0879277e";
-const uniAddr = process.env.VEXCHANGE_UNI_ROUTER_ADDRESS; // This will work with a fork of testnet
+const uniAddr = process.env.VEROCKET_UNI_ROUTER_ADDRESS; // This will work with a fork of testnet
 
 describe("Trader contract", function () {
   const VTHO_DECIMALS = 18;
