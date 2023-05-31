@@ -13,7 +13,7 @@ contract Trader {
   address payable public owner;
   // address public exchangeRouter;
 
-  event Deposit(address from, uint256 amount);
+  event Swap(address account, uint256 amountIn, uint256 minRate, uint256 amountOutMin);
   event Withdraw(address to, uint256 amount);
 
   constructor(address vthoAddr, address router) {
@@ -24,20 +24,21 @@ contract Trader {
 
 	/// @notice Pull VTHO from user's wallet. Before pulling though,
 	/// the user has to give allowance on the VTHO contract.
-  /// @param amountIn The amount of VTHO pulled from the user's address.
+  /// @param account Account owning the VTHO tokens.
+  /// @param amountIn Amount of VTHO to be swapped for VET.
+  /// @param minRate Minimum accepted exchange rate.
 	function swap(
-    address payable sender,
+    address payable account,
     uint256 amountIn,
     uint256 minRate
   ) external {
-		require(amountIn > 0, "Trader: Invalid amount");
-		require(VTHO.balanceOf(sender) > amountIn, "Trader: Insufficient amount");
+		require(amountIn > 0, "Trader: invalid amount");
+		require(VTHO.balanceOf(account) > amountIn, "Trader: insufficient amount");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
-    // TODO: substract FEE and transaction cost
+    // TODO: substract fees and transaction cost
 
-		require(VTHO.transferFrom(sender, address(this), amountIn), "Trader: Pull failed");
-		emit Deposit(sender, amountIn);
+		require(VTHO.transferFrom(account, address(this), amountIn), "Trader: transferFrom failed");
 
     uint256 amountOutMin = amountIn / minRate;
 
@@ -46,7 +47,7 @@ contract Trader {
         "Trader: approve failed."
     );
 
-    // amountOutMin must be retrieved from an oracle of some kind
+    // TODO: amountOutMin must be retrieved from an oracle of some kind
     address[] memory path = new address[](2);
     path[0] = address(VTHO);
     path[1] = UniswapV2Router02.WETH();
@@ -54,8 +55,10 @@ contract Trader {
       amountIn,
       amountOutMin,
       path,
-      sender,
+      account,
       block.timestamp
     );
+
+		emit Swap(account, amountIn, minRate, amountOutMin);
 	}
 }
