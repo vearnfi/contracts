@@ -35,6 +35,7 @@ Connect with MetaMask via `Localhost 8545` network
 ## Deploying to remote networks
 
 ```
+npm run build
 npx hardhat run scripts/deploy.ts --network <network-name>
 npx hardhat run scripts/deploy.ts --network vechain
 ```
