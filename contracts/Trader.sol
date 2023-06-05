@@ -13,7 +13,7 @@ contract Trader {
   address payable public owner;
   // address public exchangeRouter;
 
-  event Swap(address account, uint256 amountIn, uint256 minRate, uint256 amountOutMin);
+  event Swap(address account, uint256 amountIn, uint256 minRate, uint256 amountOutMin, uint256 amountOut);
   event Withdraw(address to, uint256 amount);
 
   constructor(address vthoAddr, address router) {
@@ -51,7 +51,7 @@ contract Trader {
     address[] memory path = new address[](2);
     path[0] = address(VTHO);
     path[1] = UniswapV2Router02.WETH();
-    UniswapV2Router02.swapExactTokensForETH(
+    uint[] memory amounts = UniswapV2Router02.swapExactTokensForETH(
       amountIn,
       amountOutMin,
       path,
@@ -59,6 +59,6 @@ contract Trader {
       block.timestamp
     );
 
-		emit Swap(account, amountIn, minRate, amountOutMin);
+		emit Swap(account, amountIn, minRate, amountOutMin, amounts[amounts.length - 1]);
 	}
 }
