@@ -1,9 +1,9 @@
 //SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.2;
 
 import "hardhat/console.sol";
-import { IERC20 } from "../interfaces/IERC20.sol";
-import { IUniswapV2Router02 } from "../interfaces/IUniswapV2Router02.sol";
+import { IERC20 } from "../interfaces/IERC20.sol"; // TODO: check VTHO is ERC20 compliant or import from VIP160 + import from dep
+import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 // TODO: we should be able to add server routers and choose one when calling
 // the swap method
@@ -13,8 +13,9 @@ contract Trader {
   address payable public owner;
   // address public exchangeRouter;
 
-  event Swap(address account, uint256 amountIn, uint256 minRate, uint256 amountOutMin, uint256 amountOut);
-  event Withdraw(address to, uint256 amount);
+  event Swap(address indexed account, uint256 amountIn, uint256 fees, uint256 minRate, uint256 amountOutMin, uint256 amountOut);
+  event Withdraw(address indexed to, uint256 amount);
+  event Gas(uint256 gasprice);
 
   constructor(address vthoAddr, address router) {
     VTHO = IERC20(vthoAddr);
@@ -36,29 +37,31 @@ contract Trader {
 		require(VTHO.balanceOf(account) > amountIn, "Trader: insufficient amount");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
-    // TODO: substract fees and transaction cost
-
 		require(VTHO.transferFrom(account, address(this), amountIn), "Trader: transferFrom failed");
 
-    uint256 amountOutMin = amountIn / minRate;
+    // TODO: substract fee and transaction cost
+    uint256 fees = (amountIn * 3) / 1_000 + tx.gasprice * 5_000; // TODO: replace 5_000 with the amount of gas required to run the `swap` function
+    uint256 _amountIn = amountIn - fees;
+    uint256 amountOutMin = _amountIn / minRate;
 
     require(
-        VTHO.approve(address(UniswapV2Router02), amountIn),
+        VTHO.approve(address(UniswapV2Router02), _amountIn),
         "Trader: approve failed."
     );
 
     // TODO: amountOutMin must be retrieved from an oracle of some kind
     address[] memory path = new address[](2);
     path[0] = address(VTHO);
-    path[1] = UniswapV2Router02.WETH();
+    path[1] = UniswapV2Router02.WETH(); // TODO: how do I test this?
     uint[] memory amounts = UniswapV2Router02.swapExactTokensForETH(
-      amountIn,
+      _amountIn,
       amountOutMin,
       path,
       account,
       block.timestamp
     );
 
-		emit Swap(account, amountIn, minRate, amountOutMin, amounts[amounts.length - 1]);
+		emit Swap(account, amountIn, fees, minRate, amountOutMin, amounts[amounts.length - 1]);
+    emit Gas(tx.gasprice);
 	}
 }
