@@ -20,7 +20,7 @@ contract Trader {
   event Swap(address indexed account, uint256 withdrawAmount, uint256 fees, uint256 maxRate, uint256 amountOutMin, uint256 amountOut);
   event Withdraw(address indexed to, uint256 amount);
   event Gas(uint256 gasprice);
-  event SetConfig(address indexed account, uint256 triggerAmount, uint256 reserveBalance);
+  event Config(address indexed account, uint256 triggerAmount, uint256 reserveBalance);
 
   constructor(address vthoAddress, address routerAddress) {
     vtho = IERC20(vthoAddress);
@@ -28,7 +28,7 @@ contract Trader {
     owner = payable(msg.sender);
   }
 
-  function setConfig(
+  function saveConfig(
     uint256 triggerAmount,
     uint256 reserveBalance
   ) public {
@@ -37,7 +37,7 @@ contract Trader {
 
     configByAddress[msg.sender] = SwapConfig(triggerAmount, reserveBalance);
 
-    emit SetConfig(msg.sender, triggerAmount, reserveBalance);
+    emit Config(msg.sender, triggerAmount, reserveBalance);
   }
 
 	/// @notice Pull vtho from user's wallet. Before pulling though,
