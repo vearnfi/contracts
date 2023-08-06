@@ -12,7 +12,7 @@ contract Trader {
   IUniswapV2Router02 public router;
   address payable public owner;
   struct SwapConfig {
-    uint256 triggerAmount;
+    uint256 triggerBalance;
     uint256 reserveBalance;
   }
   mapping(address => SwapConfig) public addressToConfig;
@@ -20,7 +20,7 @@ contract Trader {
   event Swap(address indexed account, uint256 withdrawAmount, uint256 fees, uint256 maxRate, uint256 amountOutMin, uint256 amountOut);
   event Withdraw(address indexed to, uint256 amount);
   event Gas(uint256 gasprice);
-  event Config(address indexed account, uint256 triggerAmount, uint256 reserveBalance);
+  event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
 
   constructor(address vthoAddress, address routerAddress) {
     vtho = IERC20(vthoAddress);
@@ -29,15 +29,15 @@ contract Trader {
   }
 
   function saveConfig(
-    uint256 triggerAmount,
+    uint256 triggerBalance,
     uint256 reserveBalance
   ) public {
-		require(triggerAmount > 0, "Trader: invalid triggerAmount");
+		require(triggerBalance > 0, "Trader: invalid triggerBalance");
 		require(reserveBalance > 0, "Trader: invalid reserveBalance");
 
-    addressToConfig[msg.sender] = SwapConfig(triggerAmount, reserveBalance);
+    addressToConfig[msg.sender] = SwapConfig(triggerBalance, reserveBalance);
 
-    emit Config(msg.sender, triggerAmount, reserveBalance);
+    emit Config(msg.sender, triggerBalance, reserveBalance);
   }
 
 	/// @notice Pull vtho from user's wallet. Before pulling though,
@@ -56,10 +56,11 @@ contract Trader {
   ) external {
     SwapConfig memory config = addressToConfig[account];
 
-		require(config.triggerAmount > 0, "Trader: invalid triggerAmount");
-		require(config.reserveBalance > 0, "Trader: invalid reserveBalance");
-		require(withdrawAmount >= config.triggerAmount, "Trader: unauthorized amount");
+		require(config.triggerBalance > 0, "Trader: triggerBalance not set");
+		require(config.reserveBalance > 0, "Trader: reserveBalance not set");
+		require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
 		require(vtho.balanceOf(account) >= withdrawAmount, "Trader: insufficient funds");
+		require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
     // TODO: should we use safeTransferFrom? See TransferHelper UniV3 periphery
