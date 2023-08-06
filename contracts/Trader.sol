@@ -23,6 +23,8 @@ contract Trader {
   event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
 
   constructor(address vthoAddress, address routerAddress) {
+    require(routerAddress != address(0), "Trader: router not set");
+
     vtho = IERC20(vthoAddress);
     router = IUniswapV2Router02(routerAddress);
     owner = payable(msg.sender);
