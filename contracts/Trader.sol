@@ -15,7 +15,7 @@ contract Trader {
     uint256 triggerAmount;
     uint256 reserveBalance;
   }
-  mapping(address => SwapConfig) public configByAddress;
+  mapping(address => SwapConfig) public addressToConfig;
 
   event Swap(address indexed account, uint256 withdrawAmount, uint256 fees, uint256 maxRate, uint256 amountOutMin, uint256 amountOut);
   event Withdraw(address indexed to, uint256 amount);
@@ -35,7 +35,7 @@ contract Trader {
 		require(triggerAmount > 0, "Trader: invalid triggerAmount");
 		require(reserveBalance > 0, "Trader: invalid reserveBalance");
 
-    configByAddress[msg.sender] = SwapConfig(triggerAmount, reserveBalance);
+    addressToConfig[msg.sender] = SwapConfig(triggerAmount, reserveBalance);
 
     emit Config(msg.sender, triggerAmount, reserveBalance);
   }
@@ -54,7 +54,7 @@ contract Trader {
     uint256 withdrawAmount,
     uint256 maxRate
   ) external {
-    SwapConfig memory config = configByAddress[account];
+    SwapConfig memory config = addressToConfig[account];
 
 		require(config.triggerAmount > 0, "Trader: invalid triggerAmount");
 		require(config.reserveBalance > 0, "Trader: invalid reserveBalance");
