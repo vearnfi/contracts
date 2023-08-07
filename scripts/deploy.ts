@@ -19,7 +19,6 @@ async function main() {
   );
 
   await trader.deployed();
-  console.log(`Trader contract deployed to ${JSON.stringify(trader, null, 2)}`);
   console.log(`Trader contract deployed to ${trader.deployTransaction.creates}`);
 }
 
