@@ -19,7 +19,7 @@ async function main() {
   );
 
   await trader.deployed();
-  console.log(`Trader contract deployed to ${JSON.stringify(trader)}`); // TODO: show contract address
+  console.log(`Trader contract deployed to ${trader.deployTransaction.creates}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
