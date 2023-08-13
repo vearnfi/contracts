@@ -63,7 +63,7 @@ contract Trader {
 		require(config.reserveBalance > 0, "Trader: reserveBalance not set");
 		require(vtho.balanceOf(account) >= config.triggerBalance, "Trader: triggerBalance not reached");
 
-    uint256 withdrawAmount = config.triggerBalance - config.reserveBalance; // TODO: this should be big enough
+    uint256 withdrawAmount = vtho.balanceOf(account) - config.reserveBalance; // TODO: this should be big enough
 		// require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
 		// require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
