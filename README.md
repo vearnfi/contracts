@@ -40,6 +40,15 @@ npx hardhat run scripts/deploy.ts --network <network-name>
 npx hardhat run scripts/deploy.ts --network vechain
 ```
 
+## Testing
+
+See: [https://docs.vechain.org/vechain-and-hardhat/hardhat-sample-project-ethers](https://docs.vechain.org/vechain-and-hardhat/hardhat-sample-project-ethers)
+
+See: [https://docs.vechain.org/openzeppelin-compatibility/how-to-recreate/setup-a-thor-solo-node](https://docs.vechain.org/openzeppelin-compatibility/how-to-recreate/setup-a-thor-solo-node)
+```
+npx hardhat test --network vechain
+```
+
 # How the project was setup
 
 ## Setup hardhat

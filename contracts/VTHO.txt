@@ -9,3 +9,6 @@ contract VTHO is ERC20 {
         _mint(msg.sender, _initial_supply);
     }
 }
+
+// TODO: see vtho contract here: https://github.com/vechain/thor/blob/master/builtin/gen/energy.sol
+// Source: https://docs.vechain.org/thor/learn/builtin-contracts.html#energy-sol

@@ -16,6 +16,19 @@ const {
 const { expect } = require("chai");
 const vthoAbi = require("../abis/ERC20.json");
 
+// TODO:Hardhat chain fork on the test rather than config file
+// just change your network (add this with your api key to the before each):
+
+// await hre.network.provider.request({
+//       method: "hardhat_reset",
+//       params: [{forking: {
+//             jsonRpcUrl: "https://eth-mainnet.alchemyapi.io/v2/xxxxxx",
+//             blockNumber:14768690
+//           },},],
+//       });
+
+
+
 // const vthoAddr = "0x0000000000000000000000000000456E65726779";
 // const vthoFaucetAddr = "0x4f6FC409e1e2D33843Cf4982d414C1Dd0879277e";
 const uniAddr = process.env.VEROCKET_UNI_ROUTER_ADDRESS; // This will work with a fork of testnet
