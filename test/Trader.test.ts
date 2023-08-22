@@ -21,20 +21,52 @@ const { expect } = require("chai");
 // const vthoFaucetAddr = "0x4f6FC409e1e2D33843Cf4982d414C1Dd0879277e";
 // const uniAddr = process.env.VEROCKET_UNI_ROUTER_ADDRESS; // This will work with a fork of testnet
 
-describe("Energy", function () {
+import * as VVET9Artifact from "../artifacts/contracts/VVET9.sol/VVET9.json";
+import * as factoryArtifact from "@uniswap/v2-core/build/UniswapV2Factory.json";
+import * as routerArtifact from "@uniswap/v2-periphery/build/UniswapV2Router02.json";
+import * as pairArtifact from "@uniswap/v2-periphery/build/IUniswapV2Pair.json";
+
+describe("Trader", function () {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
   async function deploy() {
     // Contracts are deployed using the first signer/account by default
-    const [faucet, owner, admin, alice, bob] = await ethers.getSigners();
+    const [faucet, uniOwner, traderOwner, admin, alice, bob] = await ethers.getSigners();
+
+    const balance = await ethers.provider.getBalance(uniOwner.address);
+console.log({ balance });
+
+
+    const Factory = new ethers.ContractFactory(factoryArtifact.abi, factoryArtifact.bytecode, uniOwner);
+    const factory = await Factory.deploy(uniOwner.address);
+    await factory.deployed();
+    console.log({factory: factory.address})
 
     const Energy = await ethers.getContractFactory("Energy");
     const energy = await Energy.deploy();
-    const abi = Energy.interface.format(ethers.utils.FormatTypes.json) as string;
+    const energyAbi = Energy.interface.format(ethers.utils.FormatTypes.json) as string;
     await energy.deployed();
+    console.log({energy: energy.address});
 
-    return { energy, faucet, owner, admin, alice, bob, abi };
+    const VVET9 = await ethers.getContractFactory("VVET9");
+    const vvet9 = await VVET9.deploy();
+    const vvet9Abi = VVET9.interface.format(ethers.utils.FormatTypes.json) as string;
+    await vvet9.deployed();
+    console.log({vvet9: vvet9.address});
+
+    // TODO: mock VVET9 in order to be able to get some funds? Or try finding the VVET9 address
+    // on devnet
+
+    const tx1 = await factory.createPair(energy.address, vvet9.address);
+    await tx1.wait();
+
+    const pairAddress = await factory.getPair(energy.address, vvet9.address);
+    console.log({pairAddress})
+
+    const pair = new ethers.Contract(pairAddress, pairArtifact.abi, uniOwner);
+
+    return { energy, faucet, uniOwner, traderOwner, admin, alice, bob, energyAbi, vvet9Abi };
   }
 
   // const VTHO_DECIMALS = 18;
@@ -94,6 +126,8 @@ describe("Energy", function () {
   it("should set the constructor args to the supplied values", async function () {
     const { energy } = await deploy();
     expect(await energy.name()).to.equal("VeThor");
+    expect(await energy.decimals()).to.equal(18);
+    expect(await energy.symbol()).to.equal("VTHO");
   });
 
   // describe("pull method", function () {
