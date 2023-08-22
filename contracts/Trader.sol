@@ -10,6 +10,8 @@ import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/I
 contract Trader {
   IERC20 public vtho;
   IUniswapV2Router02 public router;
+  // TODO: use constant instead of passing the address via constructor
+  address constant energyContractAddress = 0x0000000000000000000000000000456E65726779;
   address payable public owner;
   struct SwapConfig {
     uint256 triggerBalance;

@@ -1,10 +1,7 @@
 {
-  "name": "svelte-dapp",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "vefarm-contracts",
   "scripts": {
-    "test": "npx hardhat test",
+    "test": "npx hardhat test --network vechain-local",
     "build": "hardhat compile"
   },
   "keywords": [],
@@ -27,6 +24,7 @@
     "@vechain/hardhat-vechain": "^0.1.3",
     "@vechain/web3-providers-connex": "^1.0.0",
     "chai": "^4.2.0",
+    "ethereum-waffle": "^4.0.10",
     "hardhat": "^2.12.6",
     "hardhat-gas-reporter": "^1.0.8",
     "solidity-coverage": "^0.8.1",

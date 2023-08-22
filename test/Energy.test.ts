@@ -1,26 +1,30 @@
 import { ethers } from "hardhat"
-const { expect } = require("chai");
+import chai, { expect } from "chai";
+import { solidity } from "ethereum-waffle";
+import * as energyArtifact from "../artifacts/contracts/Energy.sol/Energy.json";
+import { ENERGY_CONTRACT_ADDRESS } from "../constants";
+
+chai.use(solidity);
+
+const { getSigners, Contract } = ethers;
 
 describe("Energy", function () {
-  // We define a fixture to reuse the same setup in every test.
-  // We use loadFixture to run this setup once, snapshot that state,
-  // and reset Hardhat Network to that snapshot in every test.
-  async function deploy() {
-    // Contracts are deployed using the first signer/account by default
-    const [faucet, owner, admin, alice, bob] = await ethers.getSigners();
-
-    const Energy = await ethers.getContractFactory("Energy");
-    const energy = await Energy.deploy();
-    const abi = Energy.interface.format(ethers.utils.FormatTypes.json) as string;
-    await energy.deployed();
-
-    return { energy, faucet, owner, admin, alice, bob, abi };
+  async function fixture() {
+    const [god, alice] = await getSigners();
+    const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god);
+    return { energy, god, alice };
   }
 
   it("should set the constructor args to the supplied values", async function () {
-    const { energy } = await deploy();
+    const { energy } = await fixture();
     expect(await energy.name()).to.equal("VeThor");
     expect(await energy.decimals()).to.equal(18);
     expect(await energy.symbol()).to.equal("VTHO");
+    expect(await energy.totalSupply()).to.be.gt(0);
+  });
+
+  it("should have a positive initial balance for all accounts", async function () {
+    const { energy, alice } = await fixture();
+    expect(await energy.balanceOf(alice.address)).to.be.gt(0);
   });
 });
