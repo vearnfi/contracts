@@ -1,7 +1,11 @@
-require("dotenv").config();
-require("@vechain.energy/hardhat-thor");
-import { HardhatUserConfig } from "hardhat/config";
+//require("dotenv").config();
+import * as dotenv from "dotenv";
+dotenv.config();
+import type { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
+import '@nomiclabs/hardhat-truffle5';
+import '@vechain/hardhat-vechain'
+import '@vechain/hardhat-ethers'
 
 const config: HardhatUserConfig = {
     solidity: {
@@ -19,11 +23,16 @@ const config: HardhatUserConfig = {
     artifacts: "./artifacts",
   },
   networks: {
-    hardhat: {
-      // See: https://hardhat.org/hardhat-network/docs/metamask-issue
-      chainId: 1337,
+    "vechain-local": {
+      url: "http://127.0.0.1:8669",
+      accounts: {
+        mnemonic: "denial kitchen pet squirrel other broom bar gas better priority spoil cross",
+        count: 10,
+      },
+      // restful: true,
+      gas: 10000000
     },
-    vechain: {
+    "vechain-testnet": {
       url: "https://testnet.veblocks.net",
       chainId: 100010,
       // @ts-ignore
@@ -33,20 +42,7 @@ const config: HardhatUserConfig = {
       // vthoAddr: "0x0000000000000000000000000000456E65726779",
       // vthoFaucetAddr: "0x4f6FC409e152D33843Cf4982d414C1Dd0879277e",
     },
-    // vechain_local: {
-    //   url: "http://127.0.0.1:8545/",
-    //   chainId: 1337,
-    //   // @ts-ignore
-    //   privateKey: process.env.WALLET_PRIVATE_KEY,
-    //   // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
-    //   blockGasLimit: 10000000,
-    //   // vthoAddr: "0x0000000000000000000000000000456E65726779",
-    //   // vthoFaucetAddr: "0x4f6FC409e152D33843Cf4982d414C1Dd0879277e",
-    // },
   },
-  // etherscan: {
-  //   apiKey: process.env.ETHERSCAN_API_KEY,
-  // },
 };
 
 export default config;

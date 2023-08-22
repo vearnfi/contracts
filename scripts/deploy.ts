@@ -1,8 +1,5 @@
 import hre from "hardhat";
 
-/**
- * Using hre.thor to proxy all requests to VeChainThor
- */
 const VTHO_CONTRACT_ADDRESS = process.env.VTHO_CONTRACT_ADDRESS;
 const VEROCKET_UNI_ROUTER_ADDRESS = process.env.VEROCKET_UNI_ROUTER_ADDRESS;
 
@@ -12,17 +9,17 @@ async function main() {
     `Using network ${hre.network.name} (${hre.network.config.chainId})`
   );
 
-  const signers = await hre.thor.getSigners();
+  const signers = await hre.ethers.getSigners();
   const deployer = signers[0];
 
-  const Trader = await hre.thor.getContractFactory("Trader");
+  const Trader = await hre.ethers.getContractFactory("Trader");
   const trader = await Trader.connect(deployer).deploy(
     VTHO_CONTRACT_ADDRESS,
     VEROCKET_UNI_ROUTER_ADDRESS
   );
 
   await trader.deployed();
-  console.log(`Trader contract deployed to ${trader.deployTransaction.creates}`);
+  console.log(`Trader contract deployed to ${trader.address}`);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
