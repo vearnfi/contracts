@@ -1,7 +1,7 @@
 import { ethers } from "hardhat"
 import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-import * as energyArtifact from "../artifacts/contracts/Energy.sol/Energy.json";
+import * as energyArtifact from "../artifacts/contracts/vechain/Energy.sol/Energy.json";
 import { ENERGY_CONTRACT_ADDRESS } from "../constants";
 
 chai.use(solidity);

@@ -71,6 +71,7 @@ contract Trader {
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
     // TODO: should we use safeTransferFrom? See TransferHelper UniV3 periphery
+    // Transfer the specified amount of VTHO to this contract.
 		require(vtho.transferFrom(account, address(this), withdrawAmount), "Trader: transferFrom failed");
 
     // TODO: substract fee and transaction cost
@@ -80,6 +81,7 @@ contract Trader {
     uint256 amountOutMin = amountIn / maxRate; // lower bound to the expected output amount
 
     // TODO: should we use safeApprove? See TransferHelper UniV3 periphery
+    // Approve the router to spend VTHO.
     require(
         vtho.approve(address(router), amountIn),
         "Trader: approve failed."

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.0;
 
-import "../interfaces/IStakingModel.sol";
+import "../../interfaces/IStakingModel.sol";
 
 // StakingModel tracks the in-and-out of user's VET
 // And updates user's vtho balance accordingly.

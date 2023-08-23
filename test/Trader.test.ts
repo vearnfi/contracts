@@ -1,11 +1,12 @@
 import { ethers, network } from "hardhat"
 import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-import * as factoryArtifact from "@uniswap/v2-core/build/UniswapV2Factory.json";
+import * as factoryArtifact from "../abis/factory.json";
+// import * as factoryArtifact from "@uniswap/v2-core/build/UniswapV2Factory.json";
 import * as routerArtifact from "@uniswap/v2-periphery/build/UniswapV2Router02.json";
 import * as pairArtifact from "@uniswap/v2-periphery/build/IUniswapV2Pair.json";
-import * as energyArtifact from "../artifacts/contracts/Energy.sol/Energy.json";
-import * as vvet9Artifact from "../artifacts/contracts/VVET9.sol/VVET9.json";
+import * as energyArtifact from "../artifacts/contracts/vechain/Energy.sol/Energy.json";
+import * as vvet9Artifact from "../artifacts/contracts/vechain/VVET9.sol/VVET9.json";
 import { ENERGY_CONTRACT_ADDRESS } from "../constants";
 
 chai.use(solidity);
@@ -20,6 +21,7 @@ const {
     BigNumber: { from: bn },
 } = ethers;
 
+// console.log({abi: factoryArtifact.abi, bytecode: factoryArtifact.bytecode});
 
 describe("Trader", function () {
   async function fixture() {
@@ -28,32 +30,47 @@ describe("Trader", function () {
     const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god);
 console.log({energy: energy.address});
 
-    const Factory = new ContractFactory(factoryArtifact.abi, factoryArtifact.bytecode, god);
-    const factory = await Factory.deploy(god.address);
-    await factory.deployed();
-console.log({factory: factory.address});
-
-    const VVET9 = await getContractFactory("VVET9");
+    const VVET9 = await getContractFactory("VVET9", god);
     const vvet9 = await VVET9.deploy();
     const vvet9Abi = VVET9.interface.format(FormatTypes.json) as string;
-    await vvet9.deployed();
 console.log({vvet9: vvet9.address});
 
-    for (const user of [owner, admin, alice, bob]) {
-      const amount = parseUnits("50", 18);
-      await vvet9.connect(user).deposit({ value: amount });
-    }
+const code1 = await ethers.provider.getCode(vvet9.address)
+// console.log({code1 })
+
+    const Factory = await getContractFactory("UniswapV2Factory", god);
+    const factory = await Factory.deploy(god.address, vvet9.address);
+    // const Factory = new ContractFactory(factoryArtifact.abi, factoryArtifact.bytecode, god);
+    // const factory = await Factory.deploy(god.address, vvet9.address);
+    // const factory = await Factory.deploy(god.address);
+console.log({factory: factory.address});
+
+const code2 = await ethers.provider.getCode(factory.address)
+// console.log({code2 })
+
+
+    const WETH = await factory.WETH();
+    console.log({WETH});
+    // network.provider.getCode(factory.address)
+
+
+    // for (const user of [owner, admin, alice, bob]) {
+    //   const amount = parseUnits("50", 18);
+    //   await vvet9.connect(user).deposit({ value: amount });
+    // }
     console.log('VVET done')
 
     console.log(energy.address, vvet9.address)
     const tx1 = await factory.createPair(energy.address, vvet9.address);
     const receipt = await tx1.wait();
-    console.log("TX1 DONE", receipt);
+    console.log("TX1 DONE", tx1, receipt);
 
-
-    // const pairAddress = await factory.getPair(energy.address, vvet9.address);
-    const pairAddress = await factory.allPairs(0);
+    const pairAddress = await factory.getPair(energy.address, vvet9.address);
+//     // const pairAddress = await factory.allPairs(0);
+//     const pairsLength = await factory.allPairsLength();
+//     console.log({pairsLength})
     console.log({pairAddress})
+
 
     const pair = new Contract(pairAddress, pairArtifact.abi, god);
 
