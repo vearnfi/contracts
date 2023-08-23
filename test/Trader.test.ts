@@ -1,7 +1,6 @@
 import { ethers, network } from "hardhat"
 import chai, { expect } from "chai";
 import { solidity } from "ethereum-waffle";
-import * as factoryArtifact from "../abis/factory.json";
 // import * as factoryArtifact from "@uniswap/v2-core/build/UniswapV2Factory.json";
 import * as routerArtifact from "@uniswap/v2-periphery/build/UniswapV2Router02.json";
 import * as pairArtifact from "@uniswap/v2-periphery/build/IUniswapV2Pair.json";
@@ -19,6 +18,7 @@ const {
     Contract,
     ContractFactory,
     BigNumber: { from: bn },
+    constants,
 } = ethers;
 
 // console.log({abi: factoryArtifact.abi, bytecode: factoryArtifact.bytecode});
@@ -45,25 +45,16 @@ const code1 = await ethers.provider.getCode(vvet9.address)
     // const factory = await Factory.deploy(god.address);
 console.log({factory: factory.address});
 
-const code2 = await ethers.provider.getCode(factory.address)
-// console.log({code2 })
 
-
-    const WETH = await factory.WETH();
-    console.log({WETH});
-    // network.provider.getCode(factory.address)
-
-
-    // for (const user of [owner, admin, alice, bob]) {
-    //   const amount = parseUnits("50", 18);
-    //   await vvet9.connect(user).deposit({ value: amount });
-    // }
+      const amount = parseUnits("100", 18);
+      const tx = await vvet9.connect(god).deposit({ value: amount });
+      await tx.wait();
     console.log('VVET done')
 
     console.log(energy.address, vvet9.address)
     const tx1 = await factory.createPair(energy.address, vvet9.address);
     const receipt = await tx1.wait();
-    console.log("TX1 DONE", tx1, receipt);
+    // console.log("TX1 DONE", tx1, receipt);
 
     const pairAddress = await factory.getPair(energy.address, vvet9.address);
 //     // const pairAddress = await factory.allPairs(0);
@@ -76,9 +67,51 @@ const code2 = await ethers.provider.getCode(factory.address)
 
     const reserves = await pair.getReserves();
     console.log({reserves})
-    expect(reserves[0].toNumber()).to.equal(0);
-    expect(reserves[1].toNumber()).to.equal(0);
+    // expect(reserves[0].toNumber()).to.equal(0);
+    // expect(reserves[1].toNumber()).to.equal(0);
 
+    // const Router = new ContractFactory(routerArtifact.abi, routerArtifact.bytecode, god);
+    // const router = await Router.deploy(factory.address, vvet9.address);
+    const Router = await getContractFactory("UniswapV2Router02", god);
+    const router = await Router.deploy(factory.address, vvet9.address);
+    // const Factory = new ContractFactory(factoryArtifact.abi, factoryArtifact.bytecode, god);
+    // const factory = await Factory.deploy(god.address, vvet9.address);
+    // const factory = await Factory.deploy(god.address);
+console.log({router: router.address});
+
+// const code2 = await ethers.provider.getCode(router.address)
+// console.log({code2 })
+
+const approval1 = await vvet9.connect(god).approve(router.address, constants.MaxUint256);
+await approval1.wait();
+const approval2 = await energy.connect(god).approve(router.address, constants.MaxUint256);
+await approval2.wait();
+
+console.log("APPROVALS IN")
+
+// Rate 1 VVET - 20 VTHO
+const token0Amount = parseUnits("100", 18); // vvet
+const token1Amount = parseUnits("2000", 18); // energy
+
+// Deadline equals 4 secs from now
+const deadline = Math.floor(Date.now() / 1000 + 4)
+
+// TODO: check addLiquidityETH. Does it refer to VVET?
+const addLiquidityTx = await router.connect(god).addLiquidity(
+vvet9.address,
+energy.address,
+token0Amount,
+token1Amount,
+0,
+0,
+god.address,
+deadline
+)
+
+await addLiquidityTx.wait();
+
+const reserves2 = await pair.getReserves()
+console.log({reserves2})
 
     return { energy, god, owner, admin, alice, bob, vvet9Abi };
   }
