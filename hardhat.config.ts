@@ -1,58 +1,61 @@
 //require("dotenv").config();
-import * as dotenv from "dotenv";
-dotenv.config();
-import type { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-toolbox";
-import '@nomiclabs/hardhat-truffle5';
+import * as dotenv from 'dotenv'
+dotenv.config()
+import type { HardhatUserConfig } from 'hardhat/config'
+import '@nomicfoundation/hardhat-toolbox'
+import '@nomiclabs/hardhat-truffle5'
 import '@vechain/hardhat-vechain'
 import '@vechain/hardhat-ethers'
 
 const config: HardhatUserConfig = {
-    solidity: {
+  solidity: {
     compilers: [
       {
-        version: "0.8.4",
+        version: '0.8.4',
         // settings: {},
       },
       {
-        version: "0.8.0",
+        version: '0.8.0',
         // settings: {},
       },
       {
-        version: "0.6.6",
-  settings: {
-    optimizer: {
-      enabled: true,
-      runs: 2,
-    },
-  },
+        version: '0.6.6',
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 2,
+          },
+        },
       },
       {
-        version: "0.5.16",
+        version: '0.5.16',
       },
       {
-        version: "0.5.0",
+        version: '0.5.0',
       },
       {
-        version: "0.4.24",
+        version: '0.4.24',
       },
     ],
   },
+  mocha: {
+    timeout: 100000000,
+  },
   paths: {
-    artifacts: "./artifacts",
+    artifacts: './artifacts',
   },
   networks: {
-    "vechain-local": {
-      url: "http://127.0.0.1:8669",
+    'vechain-local': {
+      url: 'http://127.0.0.1:8669',
       accounts: {
-        mnemonic: "denial kitchen pet squirrel other broom bar gas better priority spoil cross",
+        mnemonic: 'denial kitchen pet squirrel other broom bar gas better priority spoil cross',
         count: 10,
       },
       // restful: true,
-      gas: 10000000
+      gas: 10000000,
     },
-    "vechain-testnet": {
-      url: "https://testnet.veblocks.net",
+    'vechain-testnet': {
+      url: 'https://testnet.veblocks.net',
       chainId: 100010,
       // @ts-ignore
       privateKey: process.env.WALLET_PRIVATE_KEY,
@@ -62,6 +65,6 @@ const config: HardhatUserConfig = {
       // vthoFaucetAddr: "0x4f6FC409e152D33843Cf4982d414C1Dd0879277e",
     },
   },
-};
+}
 
-export default config;
+export default config

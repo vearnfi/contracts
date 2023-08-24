@@ -2,7 +2,8 @@
   "name": "vefarm-contracts",
   "scripts": {
     "test": "npx hardhat test --network vechain-local",
-    "build": "hardhat compile"
+    "build": "hardhat compile",
+    "format": "prettier --write ."
   },
   "keywords": [],
   "author": "",
@@ -27,6 +28,7 @@
     "ethereum-waffle": "^4.0.10",
     "hardhat": "^2.12.6",
     "hardhat-gas-reporter": "^1.0.8",
+    "prettier": "^3.0.2",
     "solidity-coverage": "^0.8.1",
     "ts-node": ">=8.0.0",
     "typechain": "^8.1.0",
