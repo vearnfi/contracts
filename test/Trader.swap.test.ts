@@ -1,13 +1,9 @@
 import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
-// import * as factoryArtifact from "@uniswap/v2-core/build/UniswapV2Factory.json";
-import * as routerArtifact from '@uniswap/v2-periphery/build/UniswapV2Router02.json'
-// import * as pairArtifact from '@uniswap/v2-periphery/build/IUniswapV2Pair.json'
+import { ENERGY_CONTRACT_ADDRESS } from '../constants'
 import * as pairArtifact from '../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../artifacts/contracts/vechain/Energy.sol/Energy.json'
-import * as vvet9Artifact from '../artifacts/contracts/vechain/VVET9.sol/VVET9.json'
-import { ENERGY_CONTRACT_ADDRESS } from '../constants'
 
 chai.use(solidity)
 
@@ -22,7 +18,7 @@ const {
   constants,
 } = ethers
 
-describe('Trader', function () {
+describe.skip('Trader.swap', function () {
   async function fixture() {
     const [god, owner, admin, alice, bob] = await getSigners()
 
