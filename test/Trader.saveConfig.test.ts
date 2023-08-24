@@ -1,26 +1,19 @@
 import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
-import { ENERGY_CONTRACT_ADDRESS } from '../constants'
-import * as energyArtifact from '../artifacts/contracts/vechain/Energy.sol/Energy.json'
 
 chai.use(solidity)
 
 const {
   getSigners,
   getContractFactory,
-  utils: { parseUnits, hexlify, FormatTypes },
-  Contract,
-  BigNumber: { from: bn },
-  constants,
+  utils: { parseUnits },
 } = ethers
 
 describe('Trader.saveConfig', function () {
   // TODO: see fixtures: https://ethereum-waffle.readthedocs.io/en/latest/fixtures.html?highlight=array#fixtures
   async function fixture() {
     const [god, owner, alice, bob] = await getSigners()
-
-    const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god)
 
     const VVET9 = await getContractFactory('VVET9', god)
     const vvet9 = await VVET9.deploy()
