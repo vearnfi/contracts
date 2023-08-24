@@ -10,7 +10,7 @@ const {
   utils: { parseUnits },
 } = ethers
 
-describe('Trader.saveConfig', function () {
+describe.skip('Trader.saveConfig', function () {
   // TODO: see fixtures: https://ethereum-waffle.readthedocs.io/en/latest/fixtures.html?highlight=array#fixtures
   async function fixture() {
     const [god, owner, alice, bob] = await getSigners()
@@ -30,7 +30,7 @@ describe('Trader.saveConfig', function () {
     return { god, owner, alice, bob, router, trader }
   }
 
-  it.skip('should revert if triggerBalance is zero', async function () {
+  it('should revert if triggerBalance is zero', async function () {
     const { trader, alice } = await fixture()
 
     const triggerBalance = parseUnits('0', 18)
@@ -40,7 +40,7 @@ describe('Trader.saveConfig', function () {
     await expect(trader.connect(alice).saveConfig(triggerBalance, reserveBalance)).to.be.reverted
   })
 
-  it.skip('should revert if reserveBalance is zero', async function () {
+  it('should revert if reserveBalance is zero', async function () {
     const { trader, alice } = await fixture()
 
     const triggerBalance = parseUnits('1', 18)
@@ -50,7 +50,7 @@ describe('Trader.saveConfig', function () {
     await expect(trader.connect(alice).saveConfig(triggerBalance, reserveBalance)).to.be.reverted
   })
 
-  it.skip('should revert if triggerBalance <= reserveBalance', async function () {
+  it('should revert if triggerBalance <= reserveBalance', async function () {
     const { trader, alice } = await fixture()
 
     // triggerBalance === reserveBalance
@@ -68,7 +68,7 @@ describe('Trader.saveConfig', function () {
     await expect(trader.connect(alice).saveConfig(triggerBalanceLt, reserveBalanceLt)).to.be.reverted
   })
 
-  it.skip('should store config when params are valid', async function () {
+  it('should store config when params are valid', async function () {
     const { trader, alice } = await fixture()
 
     const triggerBalance = parseUnits('100', 18)
@@ -81,7 +81,7 @@ describe('Trader.saveConfig', function () {
     expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalance, reserveBalance])
   })
 
-  it.skip("should not be possible to update other account's config", async function () {
+  it("should not be possible to update other account's config", async function () {
     const { trader, alice, bob } = await fixture()
 
     // Save Alice config
@@ -106,7 +106,7 @@ describe('Trader.saveConfig', function () {
     expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalanceA, reserveBalanceA])
   })
 
-  it.skip('should be possible to update config params', async function () {
+  it('should be possible to update config params', async function () {
     const { trader, alice } = await fixture()
 
     // Save Alice config
