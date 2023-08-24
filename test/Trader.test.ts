@@ -72,71 +72,26 @@ describe('Trader', function () {
     expect(reserves2[0]).to.equal(token0Amount)
     expect(reserves2[1]).to.equal(token1Amount)
 
-    return { energy, god, owner, admin, alice, bob, vvet9Abi }
+    const Trader = await getContractFactory('Trader', owner)
+    const trader = await Trader.deploy(router.address)
+
+    return { god, owner, admin, alice, bob, energy, vvet9, factory, router, pair, trader }
   }
 
-  // const VTHO_DECIMALS = 18;
-
-  // let faucet, deployer, keeper, alice, bob;
-  // let vtho;
-  // let trader;
-  // let snapshotId;
-
-  // before(async () => {
-  //   [faucet, deployer, keeper, alice, bob] = await ethers.getSigners();
-
-  //   // vtho = new Contract(vthoAddr, vthoAbi, owner);
-  //   // make sure to replace the "GoofyGoober" reference with your own ERC-20 name!
-  //   const VTHO = await getContractFactory("VTHO");
-  //   vtho = await VTHO.connect(faucet).deploy();
-
-  //   console.log("Token address:", vtho.address);
-  //   // darknodeRegistry = new Contract(darknodeRegistryAddr, DarknodeRegistryLogicV1.abi, owner);
-  //   // darknodePayment = new Contract(darknodePaymentAddr, DarknodePayment.abi, owner);
-
-  //   // console.log({ vtho });
-  //   // expect(await vtho.balanceOf(vthoFaucetAddr)).to.be.above(0);
-  //   // await provider.request({
-  //   //   method: "hardhat_impersonateAccount",
-  //   //   params: [vthoFaucetAddr],
-  //   // });
-
-  //   // const faucet = await getSigner(vthoFaucetAddr);
-  //   for (const user of [deployer, keeper, alice, bob]) {
-  //     expect(await vtho.balanceOf(user.address)).to.equal(0);
-
-  //     const amount = parseUnits("500.0", VTHO_DECIMALS);
-  //     await vtho.connect(faucet).transfer(user.address, amount);
-  //     expect(await vtho.balanceOf(user.address)).to.equal(amount);
-  //     console.log({ balanceOf: await vtho.balanceOf(user.address) });
-  //   }
-
-  //   // await provider.request({
-  //   //   method: "hardhat_stopImpersonatingAccount",
-  //   //   params: [vthoFaucetAddr],
-  //   // });
-
-  //   const Trader = await getContractFactory("Trader");
-  //   trader = await Trader.connect(deployer).deploy(vtho.address, uniAddr);
-  //   await trader.deployed();
-  //   expect(await vtho.balanceOf(trader.address)).to.equal(0);
-
-  //   snapshotId = await provider.request({ method: "evm_snapshot", params: [] });
-  // });
-
-  // afterEach(async () => {
-  //   await provider.request({ method: "evm_revert", params: [snapshotId] });
-  //   snapshotId = await provider.request({ method: "evm_snapshot", params: [] });
-  // });
-
   it('should set the constructor args to the supplied values', async function () {
-    const { energy } = await fixture()
-    expect(await energy.name()).to.equal('VeThor')
-    expect(await energy.decimals()).to.equal(18)
-    expect(await energy.symbol()).to.equal('VTHO')
+    const { trader, energy, router, owner } = await fixture()
+    expect(await trader.vtho()).to.equal(energy.address)
+    expect(await trader.router()).to.equal(router.address)
+    expect(await trader.owner()).to.equal(owner.address)
   })
 
-  // describe("pull method", function () {
+  it('should revert is router address is not provided', async function () {
+    const { trader } = await fixture()
+    expect(await trader.vtho()).to.equal(energy.address)
+    expect(await trader.router()).to.equal(router.address)
+    expect(await trader.owner()).to.equal(owner.address)
+  })
+  // describe("Swap method", function () {
   //   // [bn(1), POOL_BOND].forEach(amount => {
   //   // it(`should deposit ${amount.toString()} REN into greeter`, async function () {
   //   it("should pull VTHO from the user's wallet if allowance is given", async function () {

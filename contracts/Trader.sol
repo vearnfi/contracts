@@ -1,7 +1,6 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.2;
 
-import "hardhat/console.sol";
 import { IERC20 } from "../interfaces/IERC20.sol"; // TODO: check vtho is ERC20 compliant or import from VIP160 + import from dep
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
@@ -24,10 +23,10 @@ contract Trader {
   event Gas(uint256 gasprice);
   event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
 
-  constructor(address vthoAddress, address routerAddress) {
+  constructor(address routerAddress) {
     require(routerAddress != address(0), "Trader: router not set");
 
-    vtho = IERC20(vthoAddress);
+    vtho = IERC20(energyContractAddress);
     router = IUniswapV2Router02(routerAddress);
     owner = payable(msg.sender);
   }
