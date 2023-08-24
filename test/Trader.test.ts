@@ -1,4 +1,4 @@
-import { ethers, network } from 'hardhat'
+import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 // import * as factoryArtifact from "@uniswap/v2-core/build/UniswapV2Factory.json";
@@ -21,8 +21,6 @@ const {
   BigNumber: { from: bn },
   constants,
 } = ethers
-
-// console.log({abi: factoryArtifact.abi, bytecode: factoryArtifact.bytecode});
 
 describe('Trader', function () {
   async function fixture() {
@@ -57,19 +55,19 @@ describe('Trader', function () {
 
     console.log(energy.address, vvet9.address)
 
-    // const tx1 = await factory.createPair(energy.address, vvet9.address)
-    // const receipt = await tx1.wait()
+    const tx1 = await factory.createPair(energy.address, vvet9.address)
+    const receipt = await tx1.wait()
     // // console.log("TX1 DONE", tx1, receipt);
 
-    // const pairAddress = await factory.getPair(energy.address, vvet9.address)
-    // console.log({ pairAddress })
+    const pairAddress = await factory.getPair(energy.address, vvet9.address)
+    console.log({ pairAddress })
 
-    // const pair = new Contract(pairAddress, pairArtifact.abi, god)
+    const pair = new Contract(pairAddress, pairArtifact.abi, god)
 
-    // const reserves = await pair.getReserves()
-    // console.log({ reserves })
-    // expect(reserves[0].toNumber()).to.equal(0);
-    // expect(reserves[1].toNumber()).to.equal(0);
+    const reserves = await pair.getReserves()
+    console.log({ reserves })
+    expect(reserves[0].toNumber()).to.equal(0);
+    expect(reserves[1].toNumber()).to.equal(0);
 
     // const Router = new ContractFactory(routerArtifact.abi, routerArtifact.bytecode, god);
     // const router = await Router.deploy(factory.address, vvet9.address);
@@ -83,102 +81,102 @@ describe('Trader', function () {
     // const code2 = await ethers.provider.getCode(router.address)
     // console.log({code2 })
     //==========================
-    const USDC = await getContractFactory('USDC', god)
-    const usdc = await USDC.deploy()
-    const USDT = await getContractFactory('USDT', god)
-    const usdt = await USDT.deploy()
-    console.log("DEPLOYS", usdc.address, usdt.address)
+    // const USDC = await getContractFactory('USDC', god)
+    // const usdc = await USDC.deploy()
+    // const USDT = await getContractFactory('USDT', god)
+    // const usdt = await USDT.deploy()
+    // console.log("DEPLOYS", usdc.address, usdt.address)
 
-    const tokenAAmount = parseUnits('100', 18) // usdc
-    const tokenBAmount = parseUnits('100', 18) // usdt
-    console.log({tokenAAmount, tokenBAmount})
+    // const tokenAAmount = parseUnits('100', 18) // usdc
+    // const tokenBAmount = parseUnits('100', 18) // usdt
+    // console.log({tokenAAmount, tokenBAmount})
 
-    const usdcTx = await usdc.mint(god.address, tokenAAmount)
-    await usdcTx.wait()
-    const usdtTx = await usdt.mint(god.address, tokenBAmount)
-    await usdtTx.wait()
-    console.log("MINTS")
+    // const usdcTx = await usdc.mint(god.address, tokenAAmount)
+    // await usdcTx.wait()
+    // const usdtTx = await usdt.mint(god.address, tokenBAmount)
+    // await usdtTx.wait()
+    // console.log("MINTS")
 
-    const balanceUsdc = await usdc.balanceOf(god.address)
-    const balanceUsdt = await usdt.balanceOf(god.address)
-    console.log("BALANCES", {balanceUsdc, balanceUsdt})
+    // const balanceUsdc = await usdc.balanceOf(god.address)
+    // const balanceUsdt = await usdt.balanceOf(god.address)
+    // console.log("BALANCES", {balanceUsdc, balanceUsdt})
 
-    const approvalT1 = await usdc.connect(god).approve(router.address, constants.MaxUint256)
-    await approvalT1.wait()
-    const approvalT2 = await usdt.connect(god).approve(router.address, constants.MaxUint256)
-    await approvalT2.wait()
-    console.log("APPROVALS")
+    // const approvalT1 = await usdc.connect(god).approve(router.address, constants.MaxUint256)
+    // await approvalT1.wait()
+    // const approvalT2 = await usdt.connect(god).approve(router.address, constants.MaxUint256)
+    // await approvalT2.wait()
+    // console.log("APPROVALS")
 
-    const allowanceUsdc = await usdc.allowance(god.address, router.address)
-    const allowanceUsdt = await usdt.allowance(god.address, router.address)
-    console.log("ALLOWANCE", {allowanceUsdc, allowanceUsdt})
-    // Rate 1 VVET - 20 VTHO
+    // const allowanceUsdc = await usdc.allowance(god.address, router.address)
+    // const allowanceUsdt = await usdt.allowance(god.address, router.address)
+    // console.log("ALLOWANCE", {allowanceUsdc, allowanceUsdt})
+    // // Rate 1 VVET - 20 VTHO
 
-    const tx1 = await factory.createPair(usdc.address, usdt.address)
-    const receipt = await tx1.wait()
-    // console.log("TX1 DONE", tx1, receipt);
+    // const tx1 = await factory.createPair(usdc.address, usdt.address)
+    // const receipt = await tx1.wait()
+    // // console.log("TX1 DONE", tx1, receipt);
 
-    const pairAddress = await factory.getPair(usdc.address, usdt.address)
-    console.log({ pairAddress })
+    // const pairAddress = await factory.getPair(usdc.address, usdt.address)
+    // console.log({ pairAddress })
 
-    const pair = new Contract(pairAddress, pairArtifact.abi, god)
-    // const code2 = await ethers.provider.getCode(pair.address)
-    // console.log({code2 })
+    // const pair = new Contract(pairAddress, pairArtifact.abi, god)
+    // // const code2 = await ethers.provider.getCode(pair.address)
+    // // console.log({code2 })
 
-    // TODO: check addLiquidityETH. Does it refer to VVET?
-    const addLiquidityTxTest = await router
-      .connect(god)
-      .addLiquidity(
-        usdc.address,
-        usdt.address,
-        tokenAAmount,
-        tokenBAmount, // amountTokenDesired
-        0, // amountTokenMin
-        0, // amountETHMin,
-        god.address, // to
-        constants.MaxUint256, // deadline
-        {gasLimit: hexlify(9999999)}
-      )
-      console.log({addLiquidityTxTest})
-      const rec = await addLiquidityTxTest.wait()
-      console.log("test done", rec)
+    // // TODO: check addLiquidityETH. Does it refer to VVET?
+    // const addLiquidityTxTest = await router
+    //   .connect(god)
+    //   .addLiquidity(
+    //     usdc.address,
+    //     usdt.address,
+    //     tokenAAmount,
+    //     tokenBAmount, // amountTokenDesired
+    //     0, // amountTokenMin
+    //     0, // amountETHMin,
+    //     god.address, // to
+    //     constants.MaxUint256, // deadline
+    //     {gasLimit: hexlify(9999999)}
+    //   )
+    //   console.log({addLiquidityTxTest})
+    //   const rec = await addLiquidityTxTest.wait()
+    //   console.log("test done", rec)
     //==========================
 
     // const approval1 = await vvet9.connect(god).approve(router.address, constants.MaxUint256)
     // await approval1.wait()
-    // const approval2 = await energy.connect(god).approve(router.address, constants.MaxUint256)
-    // await approval2.wait()
+    const approval2 = await energy.connect(god).approve(router.address, constants.MaxUint256)
+    await approval2.wait()
 
-    // console.log('APPROVALS IN')
+    console.log('APPROVALS IN')
 
     // const WETH = await router.WETH()
     // console.log({WETH})
     // const factory_ = await router.factory()
     // console.log({factory_})
 
-    // // Rate 1 VVET - 20 VTHO
-    // const token0Amount = parseUnits('1', 18) // vvet
-    // const token1Amount = parseUnits('20', 18) // energy
+    // Rate 1 VVET - 20 VTHO
+    const token0Amount = parseUnits('1', 18) // vvet
+    const token1Amount = parseUnits('20', 18) // energy
 
-    // // TODO: check addLiquidityETH. Does it refer to VVET?
-    // const addLiquidityTx = await router
-    //   .connect(alice)
-    //   .addLiquidityETH(
-    //     // vvet9.address,
-    //     energy.address, // token
-    //     // token0Amount,
-    //     token1Amount, // amountTokenDesired
-    //     0, // amountTokenMin
-    //     0, // amountETHMin,
-    //     // 0,
-    //     // 0,
-    //     alice.address, // to
-    //     constants.MaxUint256, // deadline
-    //   { value: token0Amount })
-    //   console.log({addLiquidityTx})
+    // TODO: check addLiquidityETH. Does it refer to VVET?
+    const addLiquidityTx = await router
+      .connect(god)
+      .addLiquidityETH(
+        // vvet9.address,
+        energy.address, // token
+        // token0Amount,
+        token1Amount, // amountTokenDesired
+        0, // amountTokenMin
+        0, // amountETHMin,
+        // 0,
+        // 0,
+        god.address, // to
+        constants.MaxUint256, // deadline
+      { value: token0Amount, gasLimit: hexlify(9999999) })
+      console.log({addLiquidityTx})
 
-    // const receiptL = await addLiquidityTx.wait()
-    // console.log("ADD LIQUIDITY", {receiptL})
+    const receiptL = await addLiquidityTx.wait()
+    console.log("ADD LIQUIDITY", {receiptL})
 
     const reserves2 = await pair.getReserves()
     console.log({ reserves2 })
