@@ -75,7 +75,7 @@ contract Trader {
 
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
-    uint256 fees = (withdrawAmount * 3) / 1_000 + tx.gasprice * 5; // TODO: replace 5 with the amount of gas required to run the `swap` function
+    uint256 fees = 0; // (withdrawAmount * 3) / 1_000 + tx.gasprice * 5; // TODO: replace 5 with the amount of gas required to run the `swap` function
     uint256 amountIn = withdrawAmount - fees;
     uint256 amountOutMin = amountIn / maxRate; // lower bound to the expected output amount
 

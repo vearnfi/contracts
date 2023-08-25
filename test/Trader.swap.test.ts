@@ -11,26 +11,38 @@ const {
   getSigner,
   getSigners,
   getContractFactory,
-  utils: { parseUnits, hexlify, FormatTypes },
+  utils: { parseUnits, formatUnits, hexlify, FormatTypes },
   Contract,
   ContractFactory,
-  BigNumber: { from: bn },
+  BigNumber,
   constants,
+  provider,
 } = ethers
 
-describe.skip('Trader.swap', function () {
+describe('Trader.swap', function () {
   async function fixture() {
     const [god, owner, admin, alice, bob] = await getSigners()
 
     const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god)
 
+    expect(await provider.getCode(energy.address)).not.to.have.length(0)
+
     const VVET9 = await getContractFactory('VVET9', god)
     const vvet9 = await VVET9.deploy()
-    const vvet9Abi = VVET9.interface.format(FormatTypes.json) as string
+
+    expect(await provider.getCode(vvet9.address)).not.to.have.length(0)
 
     const Factory = await getContractFactory('UniswapV2Factory', god)
     const factory = await Factory.deploy(god.address, vvet9.address)
 
+    expect(await provider.getCode(factory.address)).not.to.have.length(0)
+
+    const Router = await getContractFactory('UniswapV2Router02', god)
+    const router = await Router.deploy(factory.address, vvet9.address)
+
+    expect(await provider.getCode(router.address)).not.to.have.length(0)
+
+    // Create pair
     const tx1 = await factory.createPair(energy.address, vvet9.address)
     await tx1.wait()
 
@@ -38,19 +50,19 @@ describe.skip('Trader.swap', function () {
 
     const pair = new Contract(pairAddress, pairArtifact.abi, god)
 
+    expect(await provider.getCode(pair.address)).not.to.have.length(0)
+
     const reserves = await pair.getReserves()
     expect(reserves[0]).to.equal(0)
     expect(reserves[1]).to.equal(0)
 
-    const Router = await getContractFactory('UniswapV2Router02', god)
-    const router = await Router.deploy(factory.address, vvet9.address)
-
+    // Add liquidity
     const approval = await energy.connect(god).approve(router.address, constants.MaxUint256)
     await approval.wait()
 
     // Rate 1 VVET - 20 VTHO
-    const token0Amount = parseUnits('2000', 18) // energy
-    const token1Amount = parseUnits('100', 18) // vvet
+    const token0Amount = parseUnits('20000', 18) // energy
+    const token1Amount = parseUnits('1000', 18) // vvet
 
     const addLiquidityTx = await router.connect(god).addLiquidityETH(
       energy.address, // token
@@ -64,6 +76,7 @@ describe.skip('Trader.swap', function () {
 
     await addLiquidityTx.wait()
 
+    // Validate updated reserves
     const reserves2 = await pair.getReserves()
     expect(reserves2[0]).to.equal(token0Amount)
     expect(reserves2[1]).to.equal(token1Amount)
@@ -74,43 +87,54 @@ describe.skip('Trader.swap', function () {
     return { god, owner, admin, alice, bob, energy, vvet9, factory, router, pair, trader }
   }
 
-  it('should set the constructor args to the supplied values', async function () {
-    const { trader, energy, router, owner } = await fixture()
-    expect(await trader.vtho()).to.equal(energy.address)
-    expect(await trader.router()).to.equal(router.address)
-    expect(await trader.owner()).to.equal(owner.address)
-  })
+    it("should swap VTHO from VET", async function () {
+      const {energy, trader, admin, alice, bob} = await fixture()
 
-  it('should revert is router address is not provided', async function () {
-    const { trader } = await fixture()
-    expect(await trader.vtho()).to.equal(energy.address)
-    expect(await trader.router()).to.equal(router.address)
-    expect(await trader.owner()).to.equal(owner.address)
-  })
-  // describe("Swap method", function () {
-  //   // [bn(1), POOL_BOND].forEach(amount => {
-  //   // it(`should deposit ${amount.toString()} REN into greeter`, async function () {
-  //   it("should pull VTHO from the user's wallet if allowance is given", async function () {
-  //     const amount = parseUnits("50.0", await vtho.decimals());
-  //     console.log({ amount });
-  //     const aliceBalance = await vtho.balanceOf(alice.address);
-  //     const greeterBalance = await vtho.balanceOf(trader.address);
-  //     expect(greeterBalance).to.equal(0);
-  //     console.log({ aliceBalance, greeterBalance });
+      // const amount = parseUnits("50", await vtho.decimals());
+      // console.log({ amount });
+      const aliceVET0 = await provider.getBalance(alice.address);
+      const aliceVTHO0: typeof BigNumber = await energy.balanceOf(alice.address)
+      console.log({aliceVTHO0, format: formatUnits(aliceVTHO0.toString(), 18)})
 
-  //     await vtho.connect(alice).approve(trader.address, amount);
-  //     await trader.connect(keeper).pull(alice.address, amount, 20);
 
-  //     // Veify correct balances
-  //     // expect(await vtho.balanceOf(greeter.address)).to.equal(amount);
-  //     expect(await vtho.balanceOf(alice.address)).to.equal(
-  //       aliceBalance.sub(amount)
-  //     );
-  //     // expect(await greeter.balanceOf(alice.address)).to.equal(amount);
-  //     expect(await vtho.balanceOf(trader.address)).to.equal(
-  //       greeterBalance.add(amount)
-  //     );
-  //   });
-  // });
-  // });
+      const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256);
+      await tx1.wait()
+      console.log("APPROVE")
+
+      const tx2 = await trader.connect(alice).saveConfig(parseUnits('50', 18), parseUnits('5', 18))
+      await tx2.wait()
+      console.log("SAVE CONFIG")
+
+      //================
+      const amount = parseUnits('1000', 18)
+      console.log({amount, format: formatUnits(amount.toString(), 18)})
+
+      // Burn some tokens to get a fixed VTHO balance
+      const tx0 = await energy.connect(alice).transfer(constants.AddressZero, aliceVTHO0.sub(amount))
+      await tx0.wait()
+
+      const aliceVTHO1: typeof BigNumber = await energy.balanceOf(alice.address)
+      console.log({ afterBurnBalance: aliceVTHO1, format: formatUnits(aliceVTHO1.toString(), 18)})
+
+      // expect(aliceVTHO1).to.equal(amount)
+      console.log("BURNT")
+      //================
+
+      const tx3 = await trader.connect(admin).swap(alice.address, 100);
+      await tx3.wait()
+      console.log("SWAP")
+
+      const aliceVET1 = await provider.getBalance(alice.address);
+      // Veify correct balances
+      // expect(await vtho.balanceOf(greeter.address)).to.equal(amount);
+      expect(aliceVET1).to.be.gt(
+        aliceVET0
+      );
+
+      console.log({aliceVET0, aliceVET1})
+      // // expect(await greeter.balanceOf(alice.address)).to.equal(amount);
+      // expect(await vtho.balanceOf(trader.address)).to.equal(
+      //   greeterBalance.add(amount)
+      // );
+    });
 })
