@@ -8,7 +8,7 @@ import { IEnergy } from "../interfaces/IEnergy.sol";
 contract Trader {
   using Math for uint256;
 
-  // TODO: should we set vtho to constant?
+  // TODO: is it ok to set vtho to constant?
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
   IUniswapV2Router02 public router;
 
@@ -41,6 +41,8 @@ contract Trader {
 		require(triggerBalance > 0, "Trader: invalid triggerBalance");
 		require(reserveBalance > 0, "Trader: invalid reserveBalance");
     require(triggerBalance > reserveBalance, "Trader: invalid config");
+    // TODO: reserveBalance < MAX_VTHO_WITHDRAWAL_AMOUNT
+    // TODO: what about triggerBalance < MAX_...
 
     addressToConfig[msg.sender] = SwapConfig(triggerBalance, reserveBalance);
 
@@ -71,6 +73,7 @@ contract Trader {
     uint256 withdrawAmount = Math.min(MAX_VTHO_WITHDRAWAL_AMOUNT, vtho.balanceOf(account) - config.reserveBalance); // TODO: this should be big enough
 		// require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
 		// require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
+    // TODO: once exchangeId is set, test routerAddress != address(0)
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
     // TODO: should we use safeTransferFrom? See TransferHelper UniV3 periphery
@@ -80,6 +83,7 @@ contract Trader {
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
     uint256 fees = 0; // (withdrawAmount * 3) / 1_000 + tx.gasprice * 5; // TODO: replace 5 with the amount of gas required to run the `swap` function
+    // TODO: fees should be below certain threshold
     uint256 amountIn = withdrawAmount - fees;
     uint256 amountOutMin = amountIn / maxRate; // lower bound to the expected output amount
 
