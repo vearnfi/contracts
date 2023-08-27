@@ -1,21 +1,25 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.2;
 
-import { IERC20 } from "../interfaces/IERC20.sol"; // TODO: check vtho is ERC20 compliant or import from VIP160 + import from dep
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import { IEnergy } from "../interfaces/IEnergy.sol";
 
-// TODO: we should be able to add server routers and choose one when calling
-// the swap method
 contract Trader {
-  IERC20 public vtho;
+  using Math for uint256;
+
+  // TODO: should we set vtho to constant?
+  IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
   IUniswapV2Router02 public router;
-  // TODO: use constant instead of passing the address via constructor
-  address constant energyContractAddress = 0x0000000000000000000000000000456E65726779;
+
   address payable public owner;
+  uint public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
+
   struct SwapConfig {
     uint256 triggerBalance;
     uint256 reserveBalance;
   }
+
   mapping(address => SwapConfig) public addressToConfig;
 
   event Swap(address indexed account, uint256 withdrawAmount, uint256 fees, uint256 maxRate, uint256 amountOutMin, uint256 amountOut);
@@ -26,9 +30,8 @@ contract Trader {
   constructor(address routerAddress) {
     require(routerAddress != address(0), "Trader: router not set");
 
-    vtho = IERC20(energyContractAddress);
-    router = IUniswapV2Router02(routerAddress);
     owner = payable(msg.sender);
+    router = IUniswapV2Router02(routerAddress);
   }
 
   function saveConfig(
@@ -53,6 +56,7 @@ contract Trader {
   /// OBS: we cannot pass amountOutputMin because we don't know the the gas price before hand (?)
   /// TODO: see https://solidity-by-example.org/defi/uniswap-v2/ for naming conventions
   /// TODO: check this out https://medium.com/buildbear/uniswap-testing-1d88ca523bf0
+  /// TODO: add exchangeId to select exchange to be used
 	function swap(
     address payable account,
     // uint256 withdrawAmount,
@@ -64,7 +68,7 @@ contract Trader {
 		require(config.reserveBalance > 0, "Trader: reserveBalance not set");
 		require(vtho.balanceOf(account) >= config.triggerBalance, "Trader: triggerBalance not reached");
 
-    uint256 withdrawAmount = vtho.balanceOf(account) - config.reserveBalance; // TODO: this should be big enough
+    uint256 withdrawAmount = Math.min(MAX_VTHO_WITHDRAWAL_AMOUNT, vtho.balanceOf(account) - config.reserveBalance); // TODO: this should be big enough
 		// require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
 		// require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");

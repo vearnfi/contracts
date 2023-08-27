@@ -26,9 +26,10 @@ describe.skip('Energy', function () {
     expect(await energy.totalSupply()).to.be.gt(0)
   })
 
-  it('should have a positive initial balance for all accounts', async function () {
-    const { energy, alice } = await fixture()
+  it('should provide a positive initial balance for all test accounts', async function () {
+    const { energy, god, alice } = await fixture()
 
+    expect(await energy.balanceOf(god.address)).to.be.gt(0)
     expect(await energy.balanceOf(alice.address)).to.be.gt(0)
   })
 })
