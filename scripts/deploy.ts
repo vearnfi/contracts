@@ -1,6 +1,5 @@
 import hre from 'hardhat'
 
-const VTHO_CONTRACT_ADDRESS = process.env.VTHO_CONTRACT_ADDRESS
 const VEROCKET_UNI_ROUTER_ADDRESS = process.env.VEROCKET_UNI_ROUTER_ADDRESS
 
 async function main() {
@@ -11,7 +10,7 @@ async function main() {
   const deployer = signers[0]
 
   const Trader = await hre.ethers.getContractFactory('Trader')
-  const trader = await Trader.connect(deployer).deploy(VTHO_CONTRACT_ADDRESS, VEROCKET_UNI_ROUTER_ADDRESS)
+  const trader = await Trader.connect(deployer).deploy(VEROCKET_UNI_ROUTER_ADDRESS)
 
   await trader.deployed()
   console.log(`Trader contract deployed to ${trader.address}`)
