@@ -1,35 +1,13 @@
 import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
+import { fixture } from "./fixture"
 
 chai.use(solidity)
 
-const {
-  getSigners,
-  getContractFactory,
-  utils: { parseUnits },
-} = ethers
+const { utils: { parseUnits } } = ethers
 
-describe.skip('Trader.saveConfig', function () {
-  // TODO: see fixtures: https://ethereum-waffle.readthedocs.io/en/latest/fixtures.html?highlight=array#fixtures
-  async function fixture() {
-    const [god, owner, alice, bob] = await getSigners()
-
-    const VVET9 = await getContractFactory('VVET9', god)
-    const vvet9 = await VVET9.deploy()
-
-    const Factory = await getContractFactory('UniswapV2Factory', god)
-    const factory = await Factory.deploy(god.address, vvet9.address)
-
-    const Router = await getContractFactory('UniswapV2Router02', god)
-    const router = await Router.deploy(factory.address, vvet9.address)
-
-    const Trader = await getContractFactory('Trader', owner)
-    const trader = await Trader.deploy(router.address)
-
-    return { god, owner, alice, bob, router, trader }
-  }
-
+describe('Trader.saveConfig', function () {
   it('should revert if triggerBalance is zero', async function () {
     const { trader, alice } = await fixture()
 

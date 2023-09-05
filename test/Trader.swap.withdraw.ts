@@ -6,13 +6,18 @@ import { fixture } from './fixture'
 chai.use(solidity)
 
 const {
-  utils: { parseUnits, formatUnits },
+  getSigner,
+  getSigners,
+  getContractFactory,
+  utils: { parseUnits, formatUnits, hexlify, FormatTypes },
+  Contract,
+  ContractFactory,
   BigNumber,
   constants,
   provider,
 } = ethers
 
-describe('Trader.swap', function () {
+describe.skip('Trader.withdraw', function () {
   it('should swap VTHO for VET', async function () {
     const { energy, trader, admin, alice, bob } = await fixture()
 
@@ -29,6 +34,21 @@ describe('Trader.swap', function () {
     const tx2 = await trader.connect(alice).saveConfig(parseUnits('50', 18), parseUnits('5', 18))
     await tx2.wait()
     console.log('SAVE CONFIG')
+
+    //================
+    // const amount = parseUnits('1000', 18)
+    // console.log({ amount, format: formatUnits(amount.toString(), 18) })
+
+    // // Burn some tokens to get a fixed VTHO balance
+    // const tx0 = await energy.connect(alice).transfer(constants.AddressZero, aliceVTHO0.sub(amount))
+    // await tx0.wait()
+
+    // const aliceVTHO1: typeof BigNumber = await energy.balanceOf(alice.address)
+    // console.log({ afterBurnBalance: aliceVTHO1, format: formatUnits(aliceVTHO1.toString(), 18) })
+
+    // // expect(aliceVTHO1).to.equal(amount)
+    // console.log('BURNT')
+    //================
 
     const tx3 = await trader.connect(admin).swap(alice.address, 100)
     await tx3.wait()

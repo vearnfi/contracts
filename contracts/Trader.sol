@@ -6,7 +6,7 @@ import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/I
 import { IEnergy } from "../interfaces/IEnergy.sol";
 
 contract Trader {
-  using Math for uint256;
+  // using Math for uint256; // I think we don't need this declaration since we are using the library in a 'static' way
 
   // TODO: is it ok to set vtho to constant?
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
@@ -26,6 +26,12 @@ contract Trader {
   event Withdraw(address indexed to, uint256 amount);
   event Gas(uint256 gasprice);
   event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
+
+  /// @dev Prevents calling a function from anyone except the owner
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
 
   constructor(address routerAddress) {
     require(routerAddress != address(0), "Trader: router not set");
@@ -109,4 +115,8 @@ contract Trader {
 		emit Swap(account, withdrawAmount, fees, maxRate, amountOutMin, amounts[amounts.length - 1]);
     emit Gas(tx.gasprice);
 	}
+
+  function withdraw() external onlyOwner {
+    vtho.transfer(owner, vtho.balanceOf(address(this)));
+  }
 }

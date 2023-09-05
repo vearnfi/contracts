@@ -8,7 +8,7 @@ chai.use(solidity)
 
 const { getSigners, Contract } = ethers
 
-describe.skip('Energy', function () {
+describe('Energy', function () {
   async function fixture() {
     const [god, alice] = await getSigners()
 
