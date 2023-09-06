@@ -13,7 +13,7 @@ const {
 } = ethers
 
 describe('Trader.swap', function () {
-  it('should swap VTHO for VET', async function () {
+  it.only('should swap VTHO for VET', async function () {
     const { energy, trader, admin, alice, bob } = await fixture()
 
     // const amount = parseUnits("50", await vtho.decimals());
@@ -31,8 +31,8 @@ describe('Trader.swap', function () {
     console.log('SAVE CONFIG')
 
     const tx3 = await trader.connect(admin).swap(alice.address, 100)
-    await tx3.wait()
-    console.log('SWAP')
+    const receipt = await tx3.wait()
+    console.log('SWAP', `Gas used: ${receipt.gasUsed.toString()}`)
 
     const aliceVET1 = await provider.getBalance(alice.address)
     // Veify correct balances

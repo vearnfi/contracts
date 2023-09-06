@@ -6,14 +6,13 @@ import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/I
 import { IEnergy } from "../interfaces/IEnergy.sol";
 
 contract Trader {
-  // using Math for uint256; // I think we don't need this declaration since we are using the library in a 'static' way
-
-  // TODO: is it ok to set vtho to constant?
-  IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
+  IEnergy private vtho = IEnergy(0x0000000000000000000000000000456E65726779);
   IUniswapV2Router02 public router;
 
   address payable public owner;
   uint public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
+  // Amount of gas consumed by the swap function
+  uint public constant SWAP_GAS_AMOUNT = 273057;
 
   struct SwapConfig {
     uint256 triggerBalance;
@@ -22,9 +21,16 @@ contract Trader {
 
   mapping(address => SwapConfig) public addressToConfig;
 
-  event Swap(address indexed account, uint256 withdrawAmount, uint256 fees, uint256 maxRate, uint256 amountOutMin, uint256 amountOut);
+  event Swap(
+    address indexed account,
+    uint256 withdrawAmount,
+    uint256 gasPrice,
+    uint256 protocolFee,
+    uint256 maxRate,
+    uint256 amountOutMin,
+    uint256 amountOut
+  );
   event Withdraw(address indexed to, uint256 amount);
-  event Gas(uint256 gasprice);
   event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
 
   /// @dev Prevents calling a function from anyone except the owner
@@ -88,9 +94,10 @@ contract Trader {
 
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
-    uint256 fees = 0; // (withdrawAmount * 3) / 1_000 + tx.gasprice * 5; // TODO: replace 5 with the amount of gas required to run the `swap` function
+    uint256 txFee = tx.gasprice * SWAP_GAS_AMOUNT; // TODO: replace gas amount.
+    uint256 protocolFee = (withdrawAmount - txFee) * 3 / 1_000;
     // TODO: fees should be below certain threshold
-    uint256 amountIn = withdrawAmount - fees;
+    uint256 amountIn = withdrawAmount - txFee - protocolFee;
     uint256 amountOutMin = amountIn / maxRate; // lower bound to the expected output amount
 
     // TODO: should we use safeApprove? See TransferHelper UniV3 periphery
@@ -103,7 +110,7 @@ contract Trader {
     // TODO: amountOutMin must be retrieved from an oracle of some kind
     address[] memory path = new address[](2);
     path[0] = address(vtho);
-    path[1] = router.WETH(); // TODO: how to test this? See https://ethereum.stackexchange.com/questions/114170/unit-testing-uniswapv2pair-function-call-to-a-non-contract-account
+    path[1] = router.WETH();
     uint[] memory amounts = router.swapExactTokensForETH(
       amountIn,
       amountOutMin,
@@ -112,11 +119,22 @@ contract Trader {
       block.timestamp // What about deadline?
     );
 
-		emit Swap(account, withdrawAmount, fees, maxRate, amountOutMin, amounts[amounts.length - 1]);
-    emit Gas(tx.gasprice);
+		emit Swap(
+      account,
+      withdrawAmount,
+      tx.gasprice,
+      protocolFee,
+      maxRate,
+      amountOutMin,
+      amounts[amounts.length - 1]
+    );
 	}
 
   function withdraw() external onlyOwner {
     vtho.transfer(owner, vtho.balanceOf(address(this)));
   }
+
+  // receive() external payable {
+  //   assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
+  // }
 }

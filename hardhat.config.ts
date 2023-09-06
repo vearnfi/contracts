@@ -1,4 +1,3 @@
-//require("dotenv").config();
 import * as dotenv from 'dotenv'
 dotenv.config()
 import type { HardhatUserConfig } from 'hardhat/config'
@@ -12,11 +11,9 @@ const config: HardhatUserConfig = {
     compilers: [
       {
         version: '0.8.4',
-        // settings: {},
       },
       {
         version: '0.8.0',
-        // settings: {},
       },
       {
         version: '0.6.6',
@@ -61,8 +58,6 @@ const config: HardhatUserConfig = {
       privateKey: process.env.WALLET_PRIVATE_KEY,
       // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
       blockGasLimit: 10000000,
-      // vthoAddr: "0x0000000000000000000000000000456E65726779",
-      // vthoFaucetAddr: "0x4f6FC409e152D33843Cf4982d414C1Dd0879277e",
     },
   },
 }
