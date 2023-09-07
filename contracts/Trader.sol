@@ -12,7 +12,7 @@ contract Trader {
   address payable public owner;
   uint256 public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
   // Amount of gas consumed by the swap function
-  uint256 public constant SWAP_GAS_AMOUNT = 271872;
+  uint256 public constant SWAP_GAS_AMOUNT = 268637;
 
   struct SwapConfig {
     uint256 triggerBalance;
