@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
-import { fixture } from './fixture'
+import { fixture } from './shared/fixture'
 
 chai.use(solidity)
 

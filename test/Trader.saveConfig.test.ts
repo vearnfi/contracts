@@ -1,11 +1,13 @@
 import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
-import { fixture } from "./fixture"
+import { fixture } from './shared/fixture'
 
 chai.use(solidity)
 
-const { utils: { parseUnits } } = ethers
+const {
+  utils: { parseUnits },
+} = ethers
 
 describe('Trader.saveConfig', function () {
   it('should revert if triggerBalance is zero', async function () {

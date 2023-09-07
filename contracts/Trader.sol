@@ -6,13 +6,13 @@ import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/I
 import { IEnergy } from "../interfaces/IEnergy.sol";
 
 contract Trader {
-  IEnergy private vtho = IEnergy(0x0000000000000000000000000000456E65726779);
+  IEnergy public vtho = IEnergy(0x0000000000000000000000000000456E65726779);
   IUniswapV2Router02 public router;
 
   address payable public owner;
-  uint public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
+  uint256 public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
   // Amount of gas consumed by the swap function
-  uint public constant SWAP_GAS_AMOUNT = 273057;
+  uint256 public constant SWAP_GAS_AMOUNT = 271872;
 
   struct SwapConfig {
     uint256 triggerBalance;
@@ -55,6 +55,7 @@ contract Trader {
     require(triggerBalance > reserveBalance, "Trader: invalid config");
     // TODO: reserveBalance < MAX_VTHO_WITHDRAWAL_AMOUNT
     // TODO: what about triggerBalance < MAX_...
+    // TODO: triggerBalance - reserveBalance should be big enough to make the tx worth it
 
     addressToConfig[msg.sender] = SwapConfig(triggerBalance, reserveBalance);
 
@@ -77,12 +78,15 @@ contract Trader {
     uint256 maxRate
   ) external {
     SwapConfig memory config = addressToConfig[account];
+    uint256 balance = vtho.balanceOf(account);
 
 		require(config.triggerBalance > 0, "Trader: triggerBalance not set");
 		require(config.reserveBalance > 0, "Trader: reserveBalance not set");
-		require(vtho.balanceOf(account) >= config.triggerBalance, "Trader: triggerBalance not reached");
+		require(balance >= config.triggerBalance, "Trader: triggerBalance not reached");
 
-    uint256 withdrawAmount = Math.min(MAX_VTHO_WITHDRAWAL_AMOUNT, vtho.balanceOf(account) - config.reserveBalance); // TODO: this should be big enough
+    uint256 withdrawAmount = balance >= MAX_VTHO_WITHDRAWAL_AMOUNT + config.reserveBalance
+      ? MAX_VTHO_WITHDRAWAL_AMOUNT
+      : balance - config.reserveBalance;
 		// require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
 		// require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
     // TODO: once exchangeId is set, test routerAddress != address(0)
@@ -94,7 +98,7 @@ contract Trader {
 
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
-    uint256 txFee = tx.gasprice * SWAP_GAS_AMOUNT; // TODO: replace gas amount.
+    uint256 txFee = tx.gasprice * SWAP_GAS_AMOUNT;
     uint256 protocolFee = (withdrawAmount - txFee) * 3 / 1_000;
     // TODO: fees should be below certain threshold
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
