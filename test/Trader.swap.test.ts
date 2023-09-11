@@ -15,7 +15,7 @@ const {
 
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
 describe('Trader.swap', function () {
-  it.only('should swap VTHO for VET when balance is above triggerBalance', async function () {
+  it('should swap VTHO for VET when balance is above triggerBalance', async function () {
     const { energy, trader, owner, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = parseUnits('5', 18)
@@ -40,6 +40,21 @@ describe('Trader.swap', function () {
     // Make sure VET balance has increased
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
     // TODO: Calculate exact VET fees
+  })
+
+  it.only('should revert if swap is trigger by unauthorized account', async function () {
+    const { energy, trader, alice, bob } = await fixture()
+
+    const reserveBalance = parseUnits('5', 18)
+    const triggerBalance = parseUnits('50', 18)
+    const exchangeRate = 100
+
+    // Approve, config and swap
+    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
+    await tx1.wait()
+    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
+    await tx2.wait()
+    await expect(trader.connect(bob).swap(alice.address, exchangeRate)).to.be.reverted
   })
 
   describe.skip('Fees accrual', function () {
