@@ -15,6 +15,7 @@ error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
 error InsufficientBalance(uint256 available, uint256 required);
 error TransferFromFailed(address from, uint256 amount);
 error ApproveFailed();
+error TransferFailed(address to, uint256 amount);
 
 contract Trader {
   IEnergy public vtho = IEnergy(0x0000000000000000000000000000456E65726779);
@@ -146,7 +147,11 @@ contract Trader {
 	}
 
   function withdraw() external onlyOwner {
-    vtho.transfer(owner, vtho.balanceOf(address(this)));
+    uint256 balance = vtho.balanceOf(address(this));
+
+    if (!vtho.transfer(owner, balance)) revert TransferFailed(owner, balance);
+
+    emit Withdraw(owner, balance);
   }
 
   // If neither a *receive* Ether nor a payable *fallback* function is present, the contract

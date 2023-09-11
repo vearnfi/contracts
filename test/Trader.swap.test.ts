@@ -24,6 +24,7 @@ describe('Trader.swap', function () {
 
     // Get VET balance before swap
     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
+
     // Approve, config and swap
     const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
     await tx1.wait()
@@ -32,6 +33,7 @@ describe('Trader.swap', function () {
     // TODO: should we implement ADMIN functionality?
     const tx3 = await trader.connect(owner).swap(alice.address, exchangeRate)
     const swapReceipt = await tx3.wait()
+
     // Get VET balance after swap
     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
 
@@ -40,9 +42,10 @@ describe('Trader.swap', function () {
     // Make sure VET balance has increased
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
     // TODO: Calculate exact VET fees
+    // expect(traderBalance).to.eq(...)
   })
 
-  it.only('should revert if swap is trigger by unauthorized account', async function () {
+  it('should revert if swap is trigger by unauthorized account', async function () {
     const { energy, trader, alice, bob } = await fixture()
 
     const reserveBalance = parseUnits('5', 18)
@@ -150,10 +153,10 @@ describe('Trader.swap', function () {
 
         // Swap
         const tx3 = await trader.connect(admin).swap(bob.address, exchangeRate)
-        const receipt = await tx3.wait()
+        const swapReceipt = await tx3.wait()
 
         // Read Swap event
-        const swapEvent = receipt.events?.find((event) => event.event === 'Swap')
+        const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
 
         expect(swapEvent).not.to.be.undefined
         expect(swapEvent?.args).not.to.be.undefined
