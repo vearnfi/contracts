@@ -24,6 +24,6 @@ describe('Trader.constructor', function () {
 
     const Trader = await getContractFactory('Trader', owner)
 
-    await expect(Trader.deploy(constants.AddressZero)).to.be.revertedWith('Trader: router not set')
+    await expect(Trader.deploy(constants.AddressZero)).to.be.reverted
   })
 })

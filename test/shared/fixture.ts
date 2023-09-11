@@ -85,44 +85,22 @@ export async function fixture() {
   expect(reserves2[0]).to.equal(token0Amount)
   expect(reserves2[1]).to.equal(token1Amount)
 
-  const SWAP_GAS_AMOUNT = (await trader.SWAP_GAS_AMOUNT()) as BigNumber
+  const SWAP_GAS = (await trader.SWAP_GAS()) as BigNumber
   const MAX_VTH0_WITHDRAW_AMOUNT = (await trader.MAX_VTHO_WITHDRAWAL_AMOUNT()) as BigNumber
-  console.log({ SWAP_GAS_AMOUNT })
+  console.log({ SWAP_GAS })
 
-  /**
-   * Approve Trader contract for VTHO token spending in behalf of signer.
-   * @param {SignerWithAddress} signer Signer account.
-   */
-  async function approve(signer: SignerWithAddress): Promise<ContractReceipt> {
-    const tx = await energy.connect(signer).approve(trader.address, constants.MaxUint256)
-    return await tx.wait()
-  }
-
-  /**
-   * Save signer configuration into Trader contract.
-   * @param {SignerWithAddress} signer Signer account.
-   * @param {BigNumber} reserveBalance Reserve balance.
-   * @param {BigNumber} triggerBalance Trigger balance.
-   */
-  async function saveConfig(
-    signer: SignerWithAddress,
-    reserveBalance: BigNumber,
-    triggerBalance: BigNumber,
-  ): Promise<ContractReceipt> {
-    const tx = await trader.connect(signer).saveConfig(triggerBalance, reserveBalance)
-    return await tx.wait()
-  }
-
-  /**
-   * Wrapper around the Trader.swap function.
-   * @param {string} targetAddress Account from which the funds are being withdrawn.
-   * @param {number} exchangeRate Max accepted exchange rate.
-   * @return Transaction receipt.
-   */
-  async function swap(targetAddress: string, exchangeRate: number): Promise<ContractReceipt> {
-    const tx = await trader.connect(admin).swap(targetAddress, exchangeRate)
-    return await tx.wait()
-  }
+  // Burn all VET from all test accounts in order to avoid changes
+  // in VTHO account balance
+  // for (const signer of [god, owner, admin, alice, bob]) {
+  //   const signerBalanceVET_0 = await provider.getBalance(signer.address)
+  //   const tx = await signer.sendTransaction({
+  //     to: constants.AddressZero,
+  //     value: signerBalanceVET_0,
+  //   })
+  //   await tx.wait()
+  //   const signerBalanceVET_1 = await provider.getBalance(signer.address)
+  //   expect(signerBalanceVET_1).to.eq(0)
+  // }
 
   return {
     god,
@@ -136,10 +114,7 @@ export async function fixture() {
     router,
     pair,
     trader,
-    SWAP_GAS_AMOUNT,
+    SWAP_GAS,
     MAX_VTH0_WITHDRAW_AMOUNT,
-    approve,
-    saveConfig,
-    swap,
   }
 }
