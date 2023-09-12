@@ -1,38 +1,58 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
 
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "../interfaces/IEnergy.sol";
 
 // TODO: should we include ownable from openzepplin?
 
-error ZeroAddress();
-error NotOwner(address account);
-error InvalidTrigger();
-error InvalidReserve();
-error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
-error InsufficientBalance(uint256 available, uint256 required);
-error TransferFromFailed(address from, uint256 amount);
-error ApproveFailed();
-error TransferFailed(address to, uint256 amount);
 
+// TODO: setAdmin fn
+// TODO: setProtocolFee fn <= 3 (/1000)
 contract Trader {
-  IEnergy public vtho = IEnergy(0x0000000000000000000000000000456E65726779);
+  //=============================//
+  // VARIABLES
+  //=============================//
+  IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
   IUniswapV2Router02 public router;
-
   address public immutable owner;
+  /**
+   * @dev Fee multiplier used to calculate protocol fee after transaction fee has been deducted.
+   *
+   * The protocolFee should be calculated as follows: tradedAmount * feeMultiplier / 10_000.
+   * This means, if feeMultiplier equals 30, we are applying a 0.3% protocol fee over the amount
+   * being traded.
+   */
+  uint8 public feeMultiplier = 30;
   uint256 public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
-  // Amount of gas consumed by the swap function
+  /**
+   * @dev Amount of gas consumed by the swap function.
+   */
   uint256 public constant SWAP_GAS = 268677;
-
   struct SwapConfig {
     uint256 triggerBalance;
     uint256 reserveBalance;
   }
-
   mapping(address => SwapConfig) public addressToConfig;
 
+  //=============================//
+  // CUSTOM ERRORS
+  //=============================//
+  error ZeroAddress();
+  error NotOwner(address account);
+  error InvalidFeeMultiplier();
+  error InvalidTrigger();
+  error InvalidReserve();
+  error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
+  error InsufficientBalance(uint256 available, uint256 required);
+  error TransferFromFailed(address from, uint256 amount);
+  error ApproveFailed();
+  error WithdrawFailed(uint256 amount);
+
+  //=============================//
+  // EVENTS
+  //=============================//
+  event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
   event Swap(
     address indexed account,
     uint256 withdrawAmount,
@@ -42,21 +62,38 @@ contract Trader {
     uint256 amountOutMin,
     uint256 amountOut
   );
-  event Withdraw(address indexed to, uint256 amount);
-  event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
 
-  /// @dev Prevents calling a function from anyone except the owner
+  //=============================//
+  // MODIFIERS
+  //=============================//
+  /**
+   * @dev Prevents calling a function from anyone except the owner.
+   */
   modifier onlyOwner() {
     if (msg.sender != owner) revert NotOwner(msg.sender);
     _;
   }
 
+  //=============================//
+  // BUSINESS LOGIC
+  //=============================//
   constructor(address routerAddress) {
     if (routerAddress == address(0)) revert ZeroAddress();
     // require(routerAddress != address(0), "Trader: router not set");
 
     owner = msg.sender;
     router = IUniswapV2Router02(routerAddress);
+  }
+
+  /**
+   * @dev Update protocol fee multiplier.
+   *
+   * This function can only be executed by the protocol owner.
+   */
+  function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
+    if (newFeeMultiplier > 30) revert InvalidFeeMultiplier();
+
+    feeMultiplier = newFeeMultiplier;
   }
 
   function saveConfig(
@@ -112,16 +149,15 @@ contract Trader {
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
     uint256 txFee = tx.gasprice * SWAP_GAS;
-    uint256 protocolFee = (withdrawAmount - txFee) * 3 / 1_000;
+    uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
     // TODO: fees should be below certain threshold
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
     uint256 amountOutMin = amountIn / maxRate; // lower bound to the expected output amount
 
-    // TODO: should we use safeApprove? See TransferHelper UniV3 periphery
     // Approve the router to spend VTHO.
     if (!vtho.approve(address(router), amountIn)) revert ApproveFailed();
 
-    // TODO: check for the best exchange rate on chain instead of passing an exchange parameter
+    // TODO: check for the best exchange rate on chain instead of passing an exchange parameter?
 
     // TODO: amountOutMin must be retrieved from an oracle of some kind
     address[] memory path = new address[](2);
@@ -146,15 +182,18 @@ contract Trader {
     );
 	}
 
+  /**
+   * @dev Withdraw protocol and transaction fees accrued by the protocol.
+   *
+   * Use the `Transfer` event emitted by the Energy contract to track this function.
+   */
   function withdraw() external onlyOwner {
-    uint256 balance = vtho.balanceOf(address(this));
-
-    if (!vtho.transfer(owner, balance)) revert TransferFailed(owner, balance);
-
-    emit Withdraw(owner, balance);
+    vtho.transfer(owner, vtho.balanceOf(address(this)));
   }
 
-  // If neither a *receive* Ether nor a payable *fallback* function is present, the contract
-  // cannot receive Ether through regular transactions and throws an exception.
-  // TODO: test sending ETH or VTHO directly to the contract should revert given the fact that we didn't specify a fallback fn
+  // If neither a *receive* Ether nor a payable *fallback* function is present,
+  // the contract cannot receive Ether through regular transactions and throws
+  // an exception.
+  // TODO: test sending VET or VTHO directly to the contract should revert given
+  // the fact that we didn't specify a fallback fn
 }
