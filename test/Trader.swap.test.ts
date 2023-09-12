@@ -101,8 +101,7 @@ describe('Trader.swap', function () {
 
     for (const { balance, withdrawAmount } of testCases) {
       it('should store protocol and transaction fees into the Trader contract after the swap', async function () {
-        const { energy, trader, god, owner, admin, alice, bob, SWAP_GAS, MAX_VTH0_WITHDRAW_AMOUNT } =
-          await fixture()
+        const { energy, trader, god, owner, admin, alice, bob, SWAP_GAS, MAX_VTH0_WITHDRAW_AMOUNT } = await fixture()
 
         console.log({ balance: balance.toString() })
 
@@ -129,7 +128,7 @@ describe('Trader.swap', function () {
         // Set bob's account to the desired balance
         const tx_ = await energy.connect(bob).approve(alice.address, constants.MaxUint256)
         await tx_.wait()
-        const bobBalanceVTHO_0 = (await energy.balanceOf(bob.address)) as BigNumber
+        const bobBalanceVTHO_0 = await energy.balanceOf(bob.address)
         console.log({ bobBalanceVTHO_0: bobBalanceVTHO_0.toString() })
 
         if (bobBalanceVTHO_0.eq(balance)) {

@@ -1,9 +1,8 @@
 import { ethers } from 'hardhat'
-import type { BigNumber, ContractReceipt } from 'ethers'
-import type { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { ENERGY_CONTRACT_ADDRESS } from '../../constants'
+import { Energy, UniswapV2Pair } from "../../typechain-types"
 import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
 
@@ -22,7 +21,7 @@ const {
 export async function fixture() {
   const [god, owner, admin, alice, bob] = await getSigners()
 
-  const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god)
+  const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god) as Energy
 
   expect(await provider.getCode(energy.address)).not.to.have.length(0)
 
@@ -52,7 +51,7 @@ export async function fixture() {
 
   const pairAddress = await factory.getPair(energy.address, vvet9.address)
 
-  const pair = new Contract(pairAddress, pairArtifact.abi, god)
+  const pair = new Contract(pairAddress, pairArtifact.abi, god) as UniswapV2Pair
 
   expect(await provider.getCode(pair.address)).not.to.have.length(0)
 
@@ -85,8 +84,8 @@ export async function fixture() {
   expect(reserves2[0]).to.equal(token0Amount)
   expect(reserves2[1]).to.equal(token1Amount)
 
-  const SWAP_GAS = (await trader.SWAP_GAS()) as BigNumber
-  const MAX_VTH0_WITHDRAW_AMOUNT = (await trader.MAX_VTHO_WITHDRAWAL_AMOUNT()) as BigNumber
+  const SWAP_GAS = await trader.SWAP_GAS()
+  const MAX_VTH0_WITHDRAW_AMOUNT = await trader.MAX_VTHO_WITHDRAWAL_AMOUNT()
   console.log({ SWAP_GAS })
 
   // Burn all VET from all test accounts in order to avoid changes

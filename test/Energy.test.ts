@@ -1,6 +1,7 @@
 import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
+import { Energy } from "../typechain-types"
 import * as energyArtifact from '../artifacts/contracts/vechain/Energy.sol/Energy.json'
 import { ENERGY_CONTRACT_ADDRESS } from '../constants'
 
@@ -8,11 +9,11 @@ chai.use(solidity)
 
 const { getSigners, Contract } = ethers
 
-describe('Energy', function () {
+describe.only('Energy', function () {
   async function fixture() {
     const [god, alice] = await getSigners()
 
-    const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god)
+    const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god) as Energy
 
     return { energy, god, alice }
   }

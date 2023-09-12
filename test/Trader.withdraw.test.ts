@@ -83,7 +83,7 @@ describe('Trader.withdraw', function () {
   })
   // TODO: test fees
 
-  it.only('should revert if not authorized account attempts to withdraw fees', async function () {
+  it('should revert if not authorized account attempts to withdraw fees', async function () {
     const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = parseUnits('5', 18)

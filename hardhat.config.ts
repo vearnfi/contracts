@@ -5,6 +5,8 @@ import '@nomicfoundation/hardhat-toolbox'
 import '@nomiclabs/hardhat-truffle5'
 import '@vechain/hardhat-vechain'
 import '@vechain/hardhat-ethers'
+import 'solidity-coverage'
+import '@typechain/hardhat'
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -59,7 +61,7 @@ const config: HardhatUserConfig = {
       // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
       blockGasLimit: 10000000,
     },
-  },
+  }
 }
 
 export default config
