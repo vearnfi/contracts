@@ -7,46 +7,78 @@ import { IEnergy } from "../interfaces/IEnergy.sol";
 // TODO: should we include ownable from openzepplin?
 
 /**
- * @title Automatic VTHO to VET swaps using optimized strategies.
+ * @title Automatic VTHO to VET swaps.
  * @author Feder
  */
 contract Trader {
-  //-------------------//
-  // Type Declarations //
-  //-------------------//
+  /**
+   * @dev Account configuration that needs to be met in order to trigger a swap for the said account.
+   */
   struct SwapConfig {
     uint256 triggerBalance;
     uint256 reserveBalance;
   }
 
-  //-----------------//
-  // State Variables //
-  //-----------------//
-  /** Interface to interact with the Energy/VTHO contract. */
+  /**
+   * @dev Interface to interact with the Energy/VTHO contract.
+   */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
-  /** Interface to interact with the UniswapV2 router contract. */
+
+  /**
+   * @dev Interface to interact with the UniswapV2 router.
+   */
   IUniswapV2Router02 public router;
-  /** Protocol owner. */
+
+  /**
+   * @dev Protocol owner.
+   *
+   * The owner is the only role with access to the setFeeMultiplier, setAdmin and withdrawFees functions.
+   */
   address public immutable owner;
-  /** Protocol admin. */
+
+  /**
+   * @dev Protocol admin.
+   *
+   * The admin is the only role with access to swap function.
+   */
   address public admin;
-  /** Multiplier used to calculate protocol fee. */
+
+  /**
+   * @dev Multiplier used to calculate protocol fee based on the following formula:
+   *
+   * uint256 protocolFee = amount * feeMultiplier / 10_000.
+   *
+   * For instance, if feeMultiplier equals 30, it means we are applying a 0.3 % fee.
+   */
   uint8 public feeMultiplier = 30;
-  /** Max VTHO amount that can be withdraw in one trade. */
+
+  /**
+   * @dev Maximum VTHO amount that can be withdrawn in one trade.
+   */
   uint256 public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
-  /** Gas consumed by the swap function. */
+
+  /**
+   * @dev Gas consumed by the swap function.
+   */
   uint256 public constant SWAP_GAS = 268677;
-  /** Set of user swap configurations. */
+
+  /**
+   * @dev Dictionary matching address accounts to swap configurations.
+   */
   mapping(address => SwapConfig) public addressToConfig;
 
-  //--------//
-  // Events //
-  //--------//
+  /**
+   * @dev Account has set a new swap configuration.
+   */
   event Config(
     address indexed account,
     uint256 triggerBalance,
     uint256 reserveBalance
   );
+
+  /**
+   * @dev A swap operation has been completed.
+   */
   event Swap(
     address indexed account,
     uint256 withdrawAmount,
@@ -57,25 +89,58 @@ contract Trader {
     uint256 amountOut
   );
 
-  //--------//
-  // Errors //
-  //--------//
+  /**
+   * @dev
+   */
   error ZeroAddress();
+
+  /**
+   * @dev The caller does not have owner role.
+   */
   error NotOwner(address account);
+
+  /**
+   * @dev The caller does not have admin role.
+   */
   error NotAdmin(address account);
+
+  /**
+   * @dev The new feeMultiplier value is higher than the maximum allowed.
+   */
   error InvalidFeeMultiplier();
+
+  /**
+   * @dev The provided triggerBalance value is higher than the maximum allowed or zero.
+   */
   error InvalidTrigger();
+
+  /**
+   * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
+   */
   error InvalidReserve();
+
+  /**
+   * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
+   */
   error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
+
+  /**
+   * @dev The VTHO balance of the target account doesn not meet the triggerBalance.
+   */
   error InsufficientBalance(uint256 available, uint256 required);
+
+  /**
+   * @dev Transfer VTHO for target account to the Trader contract failed.
+   */
   error TransferFromFailed(address from, uint256 amount);
+
+  /**
+   * @dev Giving approval for VTHO spending to a DEX has failed.
+   */
   error ApproveFailed();
 
-  //-----------//
-  // Modifiers //
-  //-----------//
   /**
-   * @notice Prevents calling a function from anyone except the owner.
+   * @dev Prevents calling a function from anyone except the owner.
    */
   modifier onlyOwner() {
     if (msg.sender != owner) revert NotOwner(msg.sender);
@@ -83,16 +148,17 @@ contract Trader {
   }
 
   /**
-   * @notice Prevents calling a function from anyone except the admin.
+   * @dev Prevents calling a function from anyone except the admin.
    */
   modifier onlyAdmin() {
     if (msg.sender != admin) revert NotAdmin(msg.sender);
     _;
   }
 
-  //-----------//
-  // Functions //
-  //-----------//
+  /**
+   * @dev Initializes the contract setting the address of the deployer as the initial owner
+   * as well as the available DEXs.
+   */
   constructor(address routerAddress) {
     if (routerAddress == address(0)) revert ZeroAddress();
     owner = msg.sender;
@@ -122,10 +188,11 @@ contract Trader {
   }
 
   /**
-   * @notice Set protocol fee multiplier.
-   * @param newFeeMultiplier New value to be used as the fee multiplier.
-   * @dev The protocol fee is then calculated using the following formula:
-   * uint256 protocolFee = amount * feeMultiplier / 10_000
+   * @dev Set a new protocol feeMultiplier.
+   *
+   * The caller must have owner role.
+   *
+   * The supplied value cannot exceed 30. (Equivalent to 0.3 % fee).
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
     if (newFeeMultiplier > 30) revert InvalidFeeMultiplier();
@@ -133,19 +200,24 @@ contract Trader {
   }
 
   /**
-   * @notice Set protocol admin.
-   * @param newAdmin Address to be the new protocol admin.
+   * @dev Set a new admin account.
+   *
+   * The caller must have owner role.
    */
   function setAdmin(address newAdmin) external onlyOwner {
     admin = newAdmin;
   }
 
   /**
-   * @notice Withdraw fees accrued by the protocol.
-   * @dev Accrued fees include protocol and transaction fees.
-   * @dev This function can be tracked using the `Transfer` event emitted by the Energy contract.
+   * @dev Withdraw fees accrued by the protocol.
+   *
+   * The caller must have owner role.
+   *
+   * Accrued fees include both protocol and transaction fees.
+   *
+   * Use the `Transfer` event emitted by the Energy contract to track this function.
    */
-  function withdraw() external onlyOwner {
+  function withdrawFees() external onlyOwner {
     vtho.transfer(owner, vtho.balanceOf(address(this)));
   }
 
@@ -191,7 +263,10 @@ contract Trader {
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
     uint256 txFee = tx.gasprice * SWAP_GAS;
+
+    // Calculate protocolFee once txFee has been deduced
     uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+
     // TODO: fees should be below certain threshold
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
     // Lower bound for the expected output amount.
