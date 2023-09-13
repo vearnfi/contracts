@@ -12,12 +12,12 @@ describe('Trader.setFeeMultiplier', function () {
     const initialFee = 30
     const newFee = 25
 
-    expect(await trader.feeMultiplier()).to.eq(initialFee)
+    expect(await trader.feeMultiplier()).to.equal(initialFee)
 
     const tx = await trader.connect(owner).setFeeMultiplier(newFee)
     await tx.wait()
 
-    expect(await trader.feeMultiplier()).to.eq(newFee)
+    expect(await trader.feeMultiplier()).to.equal(newFee)
   })
 
   it('should revert if called by any account other than the owner', async function () {
@@ -26,7 +26,7 @@ describe('Trader.setFeeMultiplier', function () {
     const initialFee = 30
     const newFee = 25
 
-    expect(await trader.feeMultiplier()).to.eq(initialFee)
+    expect(await trader.feeMultiplier()).to.equal(initialFee)
 
     for (const signer of [alice, admin]) {
       await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.reverted
@@ -39,20 +39,20 @@ describe('Trader.setFeeMultiplier', function () {
     const maxFee = 30
     const lowerFee = 25
 
-    expect(await trader.feeMultiplier()).to.eq(maxFee)
+    expect(await trader.feeMultiplier()).to.equal(maxFee)
 
     const tx1 = await trader.connect(owner).setFeeMultiplier(lowerFee)
     await tx1.wait()
 
-    expect(await trader.feeMultiplier()).to.eq(lowerFee)
+    expect(await trader.feeMultiplier()).to.equal(lowerFee)
 
     const tx2 = await trader.connect(owner).setFeeMultiplier(maxFee)
     await tx2.wait()
 
-    expect(await trader.feeMultiplier()).to.eq(maxFee)
+    expect(await trader.feeMultiplier()).to.equal(maxFee)
   })
 
-  it('should revert when attempting to set a value higher than the maximum allowed', async function () {
+  it('should revert if new value is higher than the maximum allowed', async function () {
     const { trader, owner } = await fixture()
 
     const newFee = 31

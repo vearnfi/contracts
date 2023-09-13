@@ -5,14 +5,14 @@ import { ENERGY_CONTRACT_ADDRESS } from '../../constants'
 import { Energy, UniswapV2Pair } from '../../typechain-types'
 import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
+import { eth } from './eth'
 
 chai.use(solidity)
 
 const {
   getSigners,
   getContractFactory,
-  utils: { parseUnits, hexlify },
-  BigNumber: { from: bn },
+  utils: { hexlify },
   Contract,
   constants,
   provider,
@@ -45,7 +45,15 @@ export async function fixture() {
 
   expect(await provider.getCode(trader.address)).not.to.have.length(0)
 
-  // Provide liquidity for the VVET-VTHO pool
+  // Set Trader contract admin
+  expect(await trader.admin()).to.equal(constants.AddressZero)
+
+  const tx0 = await trader.connect(owner).setAdmin(admin.address)
+  await tx0.wait()
+
+  expect(await trader.admin()).to.equal(admin.address)
+
+  // Create VVET9-VTHO pair
   const tx1 = await factory.createPair(energy.address, vvet9.address)
   await tx1.wait()
 
@@ -59,13 +67,12 @@ export async function fixture() {
   expect(reserves[0]).to.equal(0)
   expect(reserves[1]).to.equal(0)
 
-  // Add liquidity
+  // Provide liquidity with a 1 VVET9 - 20 VTHO exchange rate
   const approval = await energy.connect(god).approve(router.address, constants.MaxUint256)
   await approval.wait()
 
-  // Rate 1 VVET - 20 VTHO
-  const token0Amount = parseUnits('20000', 18) // energy
-  const token1Amount = parseUnits('1000', 18) // vvet
+  const token0Amount = eth(20000) // energy/vtho
+  const token1Amount = eth(1000) // vvet9
 
   const addLiquidityTx = await router.connect(god).addLiquidityETH(
     energy.address, // token
@@ -79,13 +86,13 @@ export async function fixture() {
 
   await addLiquidityTx.wait()
 
-  // Validate updated reserves
+  // Validate reserves
   const reserves2 = await pair.getReserves()
   expect(reserves2[0]).to.equal(token0Amount)
   expect(reserves2[1]).to.equal(token1Amount)
 
   const SWAP_GAS = await trader.SWAP_GAS()
-  const MAX_VTH0_WITHDRAW_AMOUNT = await trader.MAX_VTHO_WITHDRAWAL_AMOUNT()
+  const MAX_WITHDRAW_AMOUNT = await trader.MAX_WITHDRAW_AMOUNT()
   console.log({ SWAP_GAS })
 
   // Burn all VET from all test accounts in order to avoid changes
@@ -98,7 +105,7 @@ export async function fixture() {
   //   })
   //   await tx.wait()
   //   const signerBalanceVET_1 = await provider.getBalance(signer.address)
-  //   expect(signerBalanceVET_1).to.eq(0)
+  //   expect(signerBalanceVET_1).to.equal(0)
   // }
 
   return {
@@ -114,6 +121,6 @@ export async function fixture() {
     pair,
     trader,
     SWAP_GAS,
-    MAX_VTH0_WITHDRAW_AMOUNT,
+    MAX_WITHDRAW_AMOUNT,
   }
 }

@@ -17,6 +17,7 @@ describe('Trader.constructor', function () {
     expect(await trader.vtho()).to.equal(energy.address)
     expect(await trader.router()).to.equal(router.address)
     expect(await trader.owner()).to.equal(owner.address)
+    expect(await trader.admin()).to.equal(constants.AddressZero)
     expect(await trader.feeMultiplier()).to.equal(30)
   })
 

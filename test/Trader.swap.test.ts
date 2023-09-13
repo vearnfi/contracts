@@ -16,8 +16,8 @@ const {
 // TODO: see chai matches `to.changeTokenBalances` and `to.changeEtherBalance`
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
 describe('Trader.swap', function () {
-  it('should swap VTHO for VET when balance is above triggerBalance', async function () {
-    const { energy, trader, owner, alice, SWAP_GAS } = await fixture()
+  it('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
+    const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = eth(5)
     const triggerBalance = eth(50)
@@ -32,22 +32,22 @@ describe('Trader.swap', function () {
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
     // TODO: should we implement ADMIN functionality?
-    const tx3 = await trader.connect(owner).swap(alice.address, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Get VET balance after swap
     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
 
     // Make sure gas spent is as expected
-    expect(swapReceipt.gasUsed).to.eq(SWAP_GAS)
+    expect(swapReceipt.gasUsed).to.equal(SWAP_GAS)
     // Make sure VET balance has increased
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
     // TODO: Calculate exact VET fees
-    // expect(traderBalance).to.eq(...)
+    // expect(traderBalance).to.equal(...)
   })
 
-  it('should revert if swap is trigger by unauthorized account', async function () {
-    const { energy, trader, alice, bob } = await fixture()
+  it('should revert if called by any account other than the admin', async function () {
+    const { energy, trader, owner, alice, bob } = await fixture()
 
     const reserveBalance = eth(5)
     const triggerBalance = eth(50)
@@ -58,40 +58,43 @@ describe('Trader.swap', function () {
     await tx1.wait()
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
-    await expect(trader.connect(bob).swap(alice.address, exchangeRate)).to.be.reverted
+
+    for (const signer of [owner, alice, bob]) {
+      await expect(trader.connect(signer).swap(alice.address, exchangeRate)).to.be.reverted
+    }
   })
 
   describe.skip('Fees accrual', function () {
-    const _MAX_VTHO_WITHDRAWAL_AMOUNT = eth(1000)
+    const _MAX_WITHDRAW_AMOUNT = eth(1000)
     const reserveBalance = eth(5)
     const triggerBalance = eth(50)
     const exchangeRate = 100
 
     const testCases: { balance: BigNumber; withdrawAmount: BigNumber }[] = [
       {
-        // 1. balance > MAX_VTHO_WITHDRAWAL_AMOUNT + reserveBalance => withdrawAmount = MAX_VTHO_WITHDRAWAL_AMOUNT
-        balance: _MAX_VTHO_WITHDRAWAL_AMOUNT.add(reserveBalance).add(1),
-        withdrawAmount: _MAX_VTHO_WITHDRAWAL_AMOUNT,
+        // 1. balance > MAX_WITHDRAW_AMOUNT + reserveBalance => withdrawAmount = MAX_WITHDRAW_AMOUNT
+        balance: _MAX_WITHDRAW_AMOUNT.add(reserveBalance).add(1),
+        withdrawAmount: _MAX_WITHDRAW_AMOUNT,
       },
       // {
-      //   // 2. balance === MAX_VTHO_WITHDRAWAL_AMOUNT + reserveBalance => withdrawAmount = MAX_VTHO_WITHDRAWAL_AMOUNT
-      //   balance: _MAX_VTHO_WITHDRAWAL_AMOUNT.add(reserveBalance),
-      //   withdrawAmount: _MAX_VTHO_WITHDRAWAL_AMOUNT,
+      //   // 2. balance === MAX_WITHDRAW_AMOUNT + reserveBalance => withdrawAmount = MAX_WITHDRAW_AMOUNT
+      //   balance: _MAX_WITHDRAW_AMOUNT.add(reserveBalance),
+      //   withdrawAmount: _MAX_WITHDRAW_AMOUNT,
       // },
       // {
-      //   // 3. balance === MAX_VTHO_WITHDRAWAL_AMOUNT + reserveBalance - 1 => withdrawAmount = balance - reserveBalance
-      //   balance: _MAX_VTHO_WITHDRAWAL_AMOUNT.add(reserveBalance).sub(1),
-      //   withdrawAmount: _MAX_VTHO_WITHDRAWAL_AMOUNT.sub(1),
+      //   // 3. balance === MAX_WITHDRAW_AMOUNT + reserveBalance - 1 => withdrawAmount = balance - reserveBalance
+      //   balance: _MAX_WITHDRAW_AMOUNT.add(reserveBalance).sub(1),
+      //   withdrawAmount: _MAX_WITHDRAW_AMOUNT.sub(1),
       // },
       // {
-      //   // 4. balance === MAX_VTHO_WITHDRAWAL_AMOUNT + 1 => withdrawAmount = balance - reserveBalance
-      //   balance: _MAX_VTHO_WITHDRAWAL_AMOUNT.add(1),
-      //   withdrawAmount: _MAX_VTHO_WITHDRAWAL_AMOUNT.add(1).sub(reserveBalance),
+      //   // 4. balance === MAX_WITHDRAW_AMOUNT + 1 => withdrawAmount = balance - reserveBalance
+      //   balance: _MAX_WITHDRAW_AMOUNT.add(1),
+      //   withdrawAmount: _MAX_WITHDRAW_AMOUNT.add(1).sub(reserveBalance),
       // },
       // {
-      //   // 5. balance === MAX_VTHO_WITHDRAWAL_AMOUNT - 1 => withdrawAmount = balance - reserveBalance
-      //   balance: _MAX_VTHO_WITHDRAWAL_AMOUNT.sub(1),
-      //   withdrawAmount: _MAX_VTHO_WITHDRAWAL_AMOUNT.sub(1).sub(reserveBalance),
+      //   // 5. balance === MAX_WITHDRAW_AMOUNT - 1 => withdrawAmount = balance - reserveBalance
+      //   balance: _MAX_WITHDRAW_AMOUNT.sub(1),
+      //   withdrawAmount: _MAX_WITHDRAW_AMOUNT.sub(1).sub(reserveBalance),
       // },
       // {
       //   // 6. balance === triggerBalance => withdrawAmount = balance - reserveBalance
@@ -102,14 +105,14 @@ describe('Trader.swap', function () {
 
     for (const { balance, withdrawAmount } of testCases) {
       it('should store protocol and transaction fees into the Trader contract after the swap', async function () {
-        const { energy, trader, god, owner, admin, alice, bob, SWAP_GAS, MAX_VTH0_WITHDRAW_AMOUNT } = await fixture()
+        const { energy, trader, god, owner, admin, alice, bob, SWAP_GAS, MAX_WITHDRAW_AMOUNT } = await fixture()
 
         console.log({ balance: balance.toString() })
 
-        expect(_MAX_VTHO_WITHDRAWAL_AMOUNT).to.eq(MAX_VTH0_WITHDRAW_AMOUNT)
+        expect(_MAX_WITHDRAW_AMOUNT).to.equal(MAX_WITHDRAW_AMOUNT)
 
         const traderBalanceVTHO_0 = await energy.balanceOf(trader.address)
-        expect(traderBalanceVTHO_0).to.eq(0)
+        expect(traderBalanceVTHO_0).to.equal(0)
         console.log('EMPTY CONTRACT BALANCE')
 
         // Transfer some funds to bob to pay for txs
@@ -148,7 +151,7 @@ describe('Trader.swap', function () {
 
         const bobBalanceVTHO_1 = await energy.balanceOf(bob.address)
         console.log({ bobBalanceVTHO_1: bobBalanceVTHO_1.toString() })
-        expect(bobBalanceVTHO_1).to.eq(balance)
+        expect(bobBalanceVTHO_1).to.equal(balance)
         console.log('BOB EXACT BALANCE')
 
         // Swap
@@ -174,23 +177,23 @@ describe('Trader.swap', function () {
 
         console.log({ protocolFee: _protocolFee.toString() })
         console.log({ withdrawAmount: _withdrawAmount.toString() })
-        console.log({ MAX_VTH0_WITHDRAW_AMOUNT: MAX_VTH0_WITHDRAW_AMOUNT.toString() })
+        console.log({ MAX_WITHDRAW_AMOUNT: MAX_WITHDRAW_AMOUNT.toString() })
         console.log({ bobBalanceVTHO_1: bobBalanceVTHO_1.toString() })
 
-        // if aliceBalanceVTHO >= MAX_VTHO_WITHDRAWAL_AMOUNT => withdrawAmount === MAX_VTHO_WITHDRAWAL_AMOUNT - reserveBalance
-        // if aliceBalanceVTHO < MAX_VTHO_WITHDRAWAL_AMOUNT && aliceBalanceVTHO >= triggerBalance => withdrawAmount === aliceBalance - reserveBalance
+        // if aliceBalanceVTHO >= MAX_WITHDRAW_AMOUNT => withdrawAmount === MAX_WITHDRAW_AMOUNT - reserveBalance
+        // if aliceBalanceVTHO < MAX_WITHDRAW_AMOUNT && aliceBalanceVTHO >= triggerBalance => withdrawAmount === aliceBalance - reserveBalance
 
         expect(bobBalanceVTHO_1).to.be.gte(triggerBalance)
         console.log('TRIGGER')
 
-        expect(_withdrawAmount).to.eq(withdrawAmount)
+        expect(_withdrawAmount).to.equal(withdrawAmount)
         console.log('WITHDRAW')
-        expect(_protocolFee).to.eq(_withdrawAmount.sub(_gasprice.mul(SWAP_GAS)).mul(3).div(1000))
+        expect(_protocolFee).to.equal(_withdrawAmount.sub(_gasprice.mul(SWAP_GAS)).mul(3).div(1000))
         console.log('PROTO FEE')
 
         const traderBalanceVTHO_1 = await energy.balanceOf(trader.address)
         // console.log({ contractBalanceVTHO: traderBalanceVTHO_1.toString() })
-        expect(traderBalanceVTHO_1).to.eq(_protocolFee.add(txFee))
+        expect(traderBalanceVTHO_1).to.equal(_protocolFee.add(txFee))
         console.log('CONTRACT BALANCE')
       })
     }
@@ -269,28 +272,28 @@ describe('Trader.swap', function () {
 //     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
 
 //     // Make sure gas spent is as expected
-//     expect(swapReceipt.gasUsed).to.eq(SWAP_GAS)
+//     expect(swapReceipt.gasUsed).to.equal(SWAP_GAS)
 //     // Make sure VET balance has increased
 //     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
 //     // TODO: Calculate exact VET fees
 //   })
 
 //   // describe('Fees accrual', function () {
-//   //   // TODO: MAX_VTHO_WITHDRAWAL_AMOUNT should be fetched from the contract
-//   //   const MAX_VTHO_WITHDRAWAL_AMOUNT = parseUnits('1000', 18)
+//   //   // TODO: MAX_WITHDRAW_AMOUNT should be fetched from the contract
+//   //   const MAX_WITHDRAW_AMOUNT = parseUnits('1000', 18)
 //   //   const reserveBalance = parseUnits('5', 18)
 //   //   const triggerBalance = parseUnits('50', 18)
 //   //   const exchangeRate = 100
 
 //   //   const testCases = [
-//   //     // 1. balance >= MAX_VTHO_WITHDRAWAL_AMOUNT + reserveBalance
-//   //     MAX_VTHO_WITHDRAWAL_AMOUNT.add(reserveBalance).add(1),
-//   //     // 2. balance = MAX_VTHO_WITHDRAWAL_AMOUNT + reserveBalance - 1
-//   //     MAX_VTHO_WITHDRAWAL_AMOUNT.add(reserveBalance).sub(1),
-//   //     // 3. balance = MAX_VTHO_WITHDRAWAL_AMOUNT + 1
-//   //     MAX_VTHO_WITHDRAWAL_AMOUNT.add(1),
-//   //     // 4. balance = MAX_VTHO_WITHDRAWAL_AMOUNT - 1
-//   //     MAX_VTHO_WITHDRAWAL_AMOUNT.sub(1),
+//   //     // 1. balance >= MAX_WITHDRAW_AMOUNT + reserveBalance
+//   //     MAX_WITHDRAW_AMOUNT.add(reserveBalance).add(1),
+//   //     // 2. balance = MAX_WITHDRAW_AMOUNT + reserveBalance - 1
+//   //     MAX_WITHDRAW_AMOUNT.add(reserveBalance).sub(1),
+//   //     // 3. balance = MAX_WITHDRAW_AMOUNT + 1
+//   //     MAX_WITHDRAW_AMOUNT.add(1),
+//   //     // 4. balance = MAX_WITHDRAW_AMOUNT - 1
+//   //     MAX_WITHDRAW_AMOUNT.sub(1),
 //   //     // 5. balance = triggerBalance
 //   //     triggerBalance,
 //   //   ]
@@ -305,7 +308,7 @@ describe('Trader.swap', function () {
 //           alice,
 //           bob,
 //           SWAP_GAS,
-//           MAX_VTH0_WITHDRAW_AMOUNT,
+//           MAX_WITHDRAW_AMOUNT,
 //           approve,
 //           saveConfig,
 //           swap,
@@ -316,7 +319,7 @@ describe('Trader.swap', function () {
 
 //         const traderBalanceVTHO_0 = await energy.balanceOf(trader.address)
 
-//         expect(traderBalanceVTHO_0).to.eq(0)
+//         expect(traderBalanceVTHO_0).to.equal(0)
 
 //     const reserveBalance = parseUnits('5', 18)
 //     const triggerBalance = parseUnits('50', 18)
@@ -345,26 +348,26 @@ describe('Trader.swap', function () {
 
 //         console.log({ protocolFee: protocolFee.toString() })
 //         console.log({ withdrawAmount: withdrawAmount.toString() })
-//         console.log({ MAX_VTH0_WITHDRAW_AMOUNT: MAX_VTH0_WITHDRAW_AMOUNT.toString() })
+//         console.log({ MAX_WITHDRAW_AMOUNT: MAX_WITHDRAW_AMOUNT.toString() })
 //         console.log({ aliceBalanceVTHO: aliceBalanceVTHO.toString() })
 
-//         // if aliceBalanceVTHO >= MAX_VTHO_WITHDRAWAL_AMOUNT => withdrawAmount === MAX_VTHO_WITHDRAWAL_AMOUNT - reserveBalance
-//         // if aliceBalanceVTHO < MAX_VTHO_WITHDRAWAL_AMOUNT && aliceBalanceVTHO >= triggerBalance => withdrawAmount === aliceBalance - reserveBalance
+//         // if aliceBalanceVTHO >= MAX_WITHDRAW_AMOUNT => withdrawAmount === MAX_WITHDRAW_AMOUNT - reserveBalance
+//         // if aliceBalanceVTHO < MAX_WITHDRAW_AMOUNT && aliceBalanceVTHO >= triggerBalance => withdrawAmount === aliceBalance - reserveBalance
 
 //         const traderBalanceVTHO_1 = await energy.balanceOf(trader.address)
 //         console.log({ contractBalanceVTHO: traderBalanceVTHO_1.toString() })
 //         expect(aliceBalanceVTHO).to.be.gte(triggerBalance)
 //         console.log('TRIGGER')
 //         // TODO: create 2 different test cases
-//         expect(withdrawAmount).to.eq(
-//           aliceBalanceVTHO.gte(MAX_VTH0_WITHDRAW_AMOUNT.add(reserveBalance))
-//             ? MAX_VTH0_WITHDRAW_AMOUNT
+//         expect(withdrawAmount).to.equal(
+//           aliceBalanceVTHO.gte(MAX_WITHDRAW_AMOUNT.add(reserveBalance))
+//             ? MAX_WITHDRAW_AMOUNT
 //             : aliceBalanceVTHO.sub(reserveBalance),
 //         )
 //         console.log('WITHDRAW')
-//         expect(protocolFee).to.eq(withdrawAmount.sub(gasprice.mul(SWAP_GAS)).mul(3).div(1000))
+//         expect(protocolFee).to.equal(withdrawAmount.sub(gasprice.mul(SWAP_GAS)).mul(3).div(1000))
 //         console.log('PROTO FEE')
-//         expect(traderBalanceVTHO_1).to.eq(protocolFee.add(txFee))
+//         expect(traderBalanceVTHO_1).to.equal(protocolFee.add(txFee))
 //         console.log('CONTRACT BALANCE')
 //       })
 //     // })

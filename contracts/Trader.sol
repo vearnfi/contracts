@@ -6,53 +6,47 @@ import { IEnergy } from "../interfaces/IEnergy.sol";
 
 // TODO: should we include ownable from openzepplin?
 
-
-// TODO: setAdmin fn
-// TODO: setProtocolFee fn <= 3 (/1000)
+/**
+ * @title Automatic VTHO to VET swaps using optimized strategies.
+ * @author Feder
+ */
 contract Trader {
-  //=============================//
-  // VARIABLES
-  //=============================//
-  IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
-  IUniswapV2Router02 public router;
-  address public immutable owner;
-  /**
-   * @dev Fee multiplier used to calculate protocol fee after transaction fee has been deducted.
-   *
-   * The protocolFee should be calculated as follows: tradedAmount * feeMultiplier / 10_000.
-   * This means, if feeMultiplier equals 30, we are applying a 0.3% protocol fee over the amount
-   * being traded.
-   */
-  uint8 public feeMultiplier = 30;
-  uint256 public constant MAX_VTHO_WITHDRAWAL_AMOUNT = 1_000e18;
-  /**
-   * @dev Amount of gas consumed by the swap function.
-   */
-  uint256 public constant SWAP_GAS = 268677;
+  //-------------------//
+  // Type Declarations //
+  //-------------------//
   struct SwapConfig {
     uint256 triggerBalance;
     uint256 reserveBalance;
   }
+
+  //-----------------//
+  // State Variables //
+  //-----------------//
+  /** Interface to interact with the Energy/VTHO contract. */
+  IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
+  /** Interface to interact with the UniswapV2 router contract. */
+  IUniswapV2Router02 public router;
+  /** Protocol owner. */
+  address public immutable owner;
+  /** Protocol admin. */
+  address public admin;
+  /** Multiplier used to calculate protocol fee. */
+  uint8 public feeMultiplier = 30;
+  /** Max VTHO amount that can be withdraw in one trade. */
+  uint256 public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
+  /** Gas consumed by the swap function. */
+  uint256 public constant SWAP_GAS = 268677;
+  /** Set of user swap configurations. */
   mapping(address => SwapConfig) public addressToConfig;
 
-  //=============================//
-  // CUSTOM ERRORS
-  //=============================//
-  error ZeroAddress();
-  error NotOwner(address account);
-  error InvalidFeeMultiplier();
-  error InvalidTrigger();
-  error InvalidReserve();
-  error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
-  error InsufficientBalance(uint256 available, uint256 required);
-  error TransferFromFailed(address from, uint256 amount);
-  error ApproveFailed();
-  error WithdrawFailed(uint256 amount);
-
-  //=============================//
-  // EVENTS
-  //=============================//
-  event Config(address indexed account, uint256 triggerBalance, uint256 reserveBalance);
+  //--------//
+  // Events //
+  //--------//
+  event Config(
+    address indexed account,
+    uint256 triggerBalance,
+    uint256 reserveBalance
+  );
   event Swap(
     address indexed account,
     uint256 withdrawAmount,
@@ -63,45 +57,53 @@ contract Trader {
     uint256 amountOut
   );
 
-  //=============================//
-  // MODIFIERS
-  //=============================//
+  //--------//
+  // Errors //
+  //--------//
+  error ZeroAddress();
+  error NotOwner(address account);
+  error NotAdmin(address account);
+  error InvalidFeeMultiplier();
+  error InvalidTrigger();
+  error InvalidReserve();
+  error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
+  error InsufficientBalance(uint256 available, uint256 required);
+  error TransferFromFailed(address from, uint256 amount);
+  error ApproveFailed();
+
+  //-----------//
+  // Modifiers //
+  //-----------//
   /**
-   * @dev Prevents calling a function from anyone except the owner.
+   * @notice Prevents calling a function from anyone except the owner.
    */
   modifier onlyOwner() {
     if (msg.sender != owner) revert NotOwner(msg.sender);
     _;
   }
 
-  //=============================//
-  // BUSINESS LOGIC
-  //=============================//
+  /**
+   * @notice Prevents calling a function from anyone except the admin.
+   */
+  modifier onlyAdmin() {
+    if (msg.sender != admin) revert NotAdmin(msg.sender);
+    _;
+  }
+
+  //-----------//
+  // Functions //
+  //-----------//
   constructor(address routerAddress) {
     if (routerAddress == address(0)) revert ZeroAddress();
-    // require(routerAddress != address(0), "Trader: router not set");
-
     owner = msg.sender;
     router = IUniswapV2Router02(routerAddress);
   }
 
-  /**
-   * @dev Update protocol fee multiplier.
-   *
-   * Requirements:
-   * - Caller must be the owner.
-   */
-  function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
-    if (newFeeMultiplier > 30) revert InvalidFeeMultiplier();
-    feeMultiplier = newFeeMultiplier;
-  }
-
-  /**
-   * @dev Calculate protocol fee applied to the given amount.
-   */
-  function _calcProtocolFee(uint256 amount) internal view returns(uint256) {
-    return amount * feeMultiplier / 10_000;
-  }
+  // If neither a *receive* Ether nor a payable *fallback* function is present,
+  // the contract cannot receive Ether through regular transactions and throws
+  // an exception.
+  // TODO: test sending VET or VTHO directly to the contract should revert given
+  // the fact that we didn't specify a fallback fn
 
   function saveConfig(
     uint256 triggerBalance,
@@ -110,7 +112,7 @@ contract Trader {
 		if (triggerBalance == 0) revert InvalidTrigger();
 		if (reserveBalance == 0) revert InvalidReserve();
     if (triggerBalance <= reserveBalance) revert InvalidConfig(triggerBalance, reserveBalance);
-    // TODO: reserveBalance < MAX_VTHO_WITHDRAWAL_AMOUNT
+    // TODO: reserveBalance < MAX_WITHDRAW_AMOUNT
     // TODO: what about triggerBalance < MAX_...
     // TODO: triggerBalance - reserveBalance should be big enough to make the tx worth it
 
@@ -120,16 +122,43 @@ contract Trader {
   }
 
   /**
-   * Requirements:
-   * - Trader contract must be given approval for VTHO token spending in behalf of the
-   * target account before this function is called.
+   * @notice Set protocol fee multiplier.
+   * @param newFeeMultiplier New value to be used as the fee multiplier.
+   * @dev The protocol fee is then calculated using the following formula:
+   * uint256 protocolFee = amount * feeMultiplier / 10_000
    */
-	/// @notice Pull vtho from user's wallet. Before pulling though,
-	/// the user has to give allowance on the vtho contract.
-  /// @param account Account owning the vtho tokens.
-  /// _param withdrawAmount Amount of VTHO to be withdrawn from the account and swapped for VET.
-  /// @param maxRate Maximum accepted exchange rate. For example `maxRate = 20` implies
-  /// `you get 1 VET for every 20 vtho you deposit`. The higher the maxRate the lower the output amount in VET.
+  function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
+    if (newFeeMultiplier > 30) revert InvalidFeeMultiplier();
+    feeMultiplier = newFeeMultiplier;
+  }
+
+  /**
+   * @notice Set protocol admin.
+   * @param newAdmin Address to be the new protocol admin.
+   */
+  function setAdmin(address newAdmin) external onlyOwner {
+    admin = newAdmin;
+  }
+
+  /**
+   * @notice Withdraw fees accrued by the protocol.
+   * @dev Accrued fees include protocol and transaction fees.
+   * @dev This function can be tracked using the `Transfer` event emitted by the Energy contract.
+   */
+  function withdraw() external onlyOwner {
+    vtho.transfer(owner, vtho.balanceOf(address(this)));
+  }
+
+  /**
+   * @notice Withdraw VTHO from the target account, perform a swap for VET tokens through a DEX,
+   * and return the resulting tokens back to the original account.
+   * @param account Account owning the VTHO tokens.
+   * _param withdrawAmount Amount of VTHO to be withdrawn from the account and swapped for VET.
+   * @param maxRate Maximum accepted exchange rate. For example `maxRate = 20` implies
+   * `you get 1 VET for every 20 VTHO you deposit`. The higher the maxRate the lower the output amount in VET.
+   * @dev Trader contract must be given approval for VTHO token spending in behalf of the
+   * target account priot to calling this function.
+   */
   /// OBS: we cannot pass amountOutputMin because we don't know the the gas price before hand (?)
   /// TODO: see https://solidity-by-example.org/defi/uniswap-v2/ for naming conventions
   /// TODO: check this out https://medium.com/buildbear/uniswap-testing-1d88ca523bf0
@@ -140,7 +169,7 @@ contract Trader {
     address payable account,
     // uint256 withdrawAmount,
     uint256 maxRate
-  ) external onlyOwner {
+  ) external onlyAdmin {
     SwapConfig memory config = addressToConfig[account];
     uint256 balance = vtho.balanceOf(account);
 
@@ -148,8 +177,8 @@ contract Trader {
 		if (config.reserveBalance == 0) revert InvalidReserve();
 		if (balance < config.triggerBalance) revert InsufficientBalance(balance, config.triggerBalance);
 
-    uint256 withdrawAmount = balance >= MAX_VTHO_WITHDRAWAL_AMOUNT + config.reserveBalance
-      ? MAX_VTHO_WITHDRAWAL_AMOUNT
+    uint256 withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
+      ? MAX_WITHDRAW_AMOUNT
       : balance - config.reserveBalance;
 		// require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
 		// require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
@@ -200,18 +229,10 @@ contract Trader {
 	}
 
   /**
-   * @dev Withdraw protocol and transaction fees accrued by the protocol.
-   *
-   * Notice:
-   * - Track this function using the `Transfer` event emitted by the Energy contract.
+   * @notice Calculate protocol fee applied to the given amount.
    */
-  function withdraw() external onlyOwner {
-    vtho.transfer(owner, vtho.balanceOf(address(this)));
+  function _calcProtocolFee(uint256 amount) internal view returns (uint256) {
+    return amount * feeMultiplier / 10_000;
   }
 
-  // If neither a *receive* Ether nor a payable *fallback* function is present,
-  // the contract cannot receive Ether through regular transactions and throws
-  // an exception.
-  // TODO: test sending VET or VTHO directly to the contract should revert given
-  // the fact that we didn't specify a fallback fn
 }
