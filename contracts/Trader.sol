@@ -88,18 +88,25 @@ contract Trader {
   /**
    * @dev Update protocol fee multiplier.
    *
-   * This function can only be executed by the protocol owner.
+   * Requirements:
+   * - Caller must be the owner.
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
     if (newFeeMultiplier > 30) revert InvalidFeeMultiplier();
-
     feeMultiplier = newFeeMultiplier;
+  }
+
+  /**
+   * @dev Calculate protocol fee applied to the given amount.
+   */
+  function _calcProtocolFee(uint256 amount) internal view returns(uint256) {
+    return amount * feeMultiplier / 10_000;
   }
 
   function saveConfig(
     uint256 triggerBalance,
     uint256 reserveBalance
-  ) public {
+  ) external {
 		if (triggerBalance == 0) revert InvalidTrigger();
 		if (reserveBalance == 0) revert InvalidReserve();
     if (triggerBalance <= reserveBalance) revert InvalidConfig(triggerBalance, reserveBalance);
@@ -112,6 +119,11 @@ contract Trader {
     emit Config(msg.sender, triggerBalance, reserveBalance);
   }
 
+  /**
+   * Requirements:
+   * - Trader contract must be given approval for VTHO token spending in behalf of the
+   * target account before this function is called.
+   */
 	/// @notice Pull vtho from user's wallet. Before pulling though,
 	/// the user has to give allowance on the vtho contract.
   /// @param account Account owning the vtho tokens.
@@ -123,6 +135,7 @@ contract Trader {
   /// TODO: check this out https://medium.com/buildbear/uniswap-testing-1d88ca523bf0
   /// TODO: add exchangeId to select exchange to be used
   /// TODO: secure this function onlyOwner or onlyOwnerOrAdmin
+  // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
 	function swap(
     address payable account,
     // uint256 withdrawAmount,
@@ -152,7 +165,8 @@ contract Trader {
     uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
     // TODO: fees should be below certain threshold
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
-    uint256 amountOutMin = amountIn / maxRate; // lower bound to the expected output amount
+    // Lower bound for the expected output amount.
+    uint256 amountOutMin = amountIn / maxRate;
 
     // Approve the router to spend VTHO.
     if (!vtho.approve(address(router), amountIn)) revert ApproveFailed();
@@ -171,12 +185,15 @@ contract Trader {
       block.timestamp // What about deadline?
     );
 
+    // TODO: should we assert previousVETBalance > newVETBalance?
+
 		emit Swap(
       account,
       withdrawAmount,
       tx.gasprice,
       protocolFee,
       maxRate,
+      // TODO: add amountIn
       amountOutMin,
       amounts[amounts.length - 1]
     );
@@ -185,7 +202,8 @@ contract Trader {
   /**
    * @dev Withdraw protocol and transaction fees accrued by the protocol.
    *
-   * Use the `Transfer` event emitted by the Energy contract to track this function.
+   * Notice:
+   * - Track this function using the `Transfer` event emitted by the Energy contract.
    */
   function withdraw() external onlyOwner {
     vtho.transfer(owner, vtho.balanceOf(address(this)));

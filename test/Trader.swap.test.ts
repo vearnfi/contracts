@@ -3,23 +3,24 @@ import type { BigNumber } from 'ethers'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
+import { eth } from './shared/eth'
 
 chai.use(solidity)
 
 const {
-  utils: { parseUnits, formatUnits },
   BigNumber: { from: bn },
   constants,
   provider,
 } = ethers
 
+// TODO: see chai matches `to.changeTokenBalances` and `to.changeEtherBalance`
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
 describe('Trader.swap', function () {
   it('should swap VTHO for VET when balance is above triggerBalance', async function () {
     const { energy, trader, owner, alice, SWAP_GAS } = await fixture()
 
-    const reserveBalance = parseUnits('5', 18)
-    const triggerBalance = parseUnits('50', 18)
+    const reserveBalance = eth(5)
+    const triggerBalance = eth(50)
     const exchangeRate = 100
 
     // Get VET balance before swap
@@ -48,8 +49,8 @@ describe('Trader.swap', function () {
   it('should revert if swap is trigger by unauthorized account', async function () {
     const { energy, trader, alice, bob } = await fixture()
 
-    const reserveBalance = parseUnits('5', 18)
-    const triggerBalance = parseUnits('50', 18)
+    const reserveBalance = eth(5)
+    const triggerBalance = eth(50)
     const exchangeRate = 100
 
     // Approve, config and swap
@@ -61,9 +62,9 @@ describe('Trader.swap', function () {
   })
 
   describe.skip('Fees accrual', function () {
-    const _MAX_VTHO_WITHDRAWAL_AMOUNT = parseUnits('1000', 18)
-    const reserveBalance = parseUnits('5', 18)
-    const triggerBalance = parseUnits('50', 18)
+    const _MAX_VTHO_WITHDRAWAL_AMOUNT = eth(1000)
+    const reserveBalance = eth(5)
+    const triggerBalance = eth(50)
     const exchangeRate = 100
 
     const testCases: { balance: BigNumber; withdrawAmount: BigNumber }[] = [
@@ -112,7 +113,7 @@ describe('Trader.swap', function () {
         console.log('EMPTY CONTRACT BALANCE')
 
         // Transfer some funds to bob to pay for txs
-        const tx0 = await energy.connect(alice).transfer(bob.address, parseUnits('1000', 18))
+        const tx0 = await energy.connect(alice).transfer(bob.address, eth(1000))
         await tx0.wait()
         console.log('TRANSAFER FROM A TO B')
 
@@ -193,6 +194,9 @@ describe('Trader.swap', function () {
         console.log('CONTRACT BALANCE')
       })
     }
+
+    // TODO: make sure only the txFee and protocolFee are kept in the contract
+    // while the remaining is being sent to the DEX
   })
 
   // TODO: try to estimate the exact swap fees (VET amount) based on

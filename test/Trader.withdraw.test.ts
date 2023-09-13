@@ -2,27 +2,21 @@ import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
+import { eth } from './shared/eth'
 
 chai.use(solidity)
 
 const {
-  getSigner,
-  getSigners,
-  getContractFactory,
-  utils: { parseUnits, formatUnits, hexlify, FormatTypes },
-  Contract,
-  ContractFactory,
   BigNumber: { from: bn },
   constants,
-  provider,
 } = ethers
 
 describe('Trader.withdraw', function () {
   it('should be possible for the owner to withdraw accrued fees', async function () {
     const { energy, trader, owner, alice, SWAP_GAS } = await fixture()
 
-    const reserveBalance = parseUnits('5', 18)
-    const triggerBalance = parseUnits('50', 18)
+    const reserveBalance = eth(5)
+    const triggerBalance = eth(50)
     const exchangeRate = 100
 
     // Get accrued fees before the swap.
@@ -86,8 +80,8 @@ describe('Trader.withdraw', function () {
   it('should revert if not authorized account attempts to withdraw fees', async function () {
     const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
 
-    const reserveBalance = parseUnits('5', 18)
-    const triggerBalance = parseUnits('50', 18)
+    const reserveBalance = eth(5)
+    const triggerBalance = eth(50)
     const exchangeRate = 100
 
     // Get accrued fees before the swap.

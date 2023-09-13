@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { ENERGY_CONTRACT_ADDRESS } from '../../constants'
-import { Energy, UniswapV2Pair } from "../../typechain-types"
+import { Energy, UniswapV2Pair } from '../../typechain-types'
 import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
 

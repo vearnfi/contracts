@@ -61,7 +61,7 @@ const config: HardhatUserConfig = {
       // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
       blockGasLimit: 10000000,
     },
-  }
+  },
 }
 
 export default config

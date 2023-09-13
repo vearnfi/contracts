@@ -5,8 +5,8 @@ import { fixture } from './shared/fixture'
 chai.use(solidity)
 
 // TODO: research how other protocols set the fee
-describe.only('Trader.setFeeMultiplier', function () {
-  it('should be possible for the owner to set a new fee multiplier', async function () {
+describe('Trader.setFeeMultiplier', function () {
+  it('should set a new fee multiplier if called by the owner', async function () {
     const { trader, owner } = await fixture()
 
     const initialFee = 30
@@ -20,7 +20,20 @@ describe.only('Trader.setFeeMultiplier', function () {
     expect(await trader.feeMultiplier()).to.eq(newFee)
   })
 
-  it('should be possible for the owner to set the maximum fee multiplier', async function () {
+  it('should revert if called by any account other than the owner', async function () {
+    const { trader, admin, alice } = await fixture()
+
+    const initialFee = 30
+    const newFee = 25
+
+    expect(await trader.feeMultiplier()).to.eq(initialFee)
+
+    for (const signer of [alice, admin]) {
+      await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.reverted
+    }
+  })
+
+  it('should be possible to set the maximum fee multiplier', async function () {
     const { trader, owner } = await fixture()
 
     const maxFee = 30
@@ -39,20 +52,7 @@ describe.only('Trader.setFeeMultiplier', function () {
     expect(await trader.feeMultiplier()).to.eq(maxFee)
   })
 
-  it('should revert if not authorized account attempts to set a new fee multiplier', async function () {
-    const { trader, admin, alice } = await fixture()
-
-    const initialFee = 30
-    const newFee = 25
-
-    expect(await trader.feeMultiplier()).to.eq(initialFee)
-
-    for (const signer of [alice, admin]) {
-      await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.reverted
-    }
-  })
-
-  it('should revert if the new fee multiplier is higher than allowed', async function () {
+  it('should revert when attempting to set a value higher than the maximum allowed', async function () {
     const { trader, owner } = await fixture()
 
     const newFee = 31
