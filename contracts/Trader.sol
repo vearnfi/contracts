@@ -92,58 +92,58 @@ contract Trader {
   /**
    * @dev
    */
-  error ZeroAddress();
+  error Trader__ZeroAddress();
 
   /**
    * @dev The caller does not have owner role.
    */
-  error NotOwner(address account);
+  error Trader__NotOwner(address account);
 
   /**
    * @dev The caller does not have admin role.
    */
-  error NotAdmin(address account);
+  error Trader__NotAdmin(address account);
 
   /**
    * @dev The new feeMultiplier value is higher than the maximum allowed.
    */
-  error InvalidFeeMultiplier();
+  error Trader__InvalidFeeMultiplier();
 
   /**
    * @dev The provided triggerBalance value is higher than the maximum allowed or zero.
    */
-  error InvalidTrigger();
+  error Trader__InvalidTrigger();
 
   /**
    * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
    */
-  error InvalidReserve();
+  error Trader__InvalidReserve();
 
   /**
    * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
    */
-  error InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
+  error Trader__InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
 
   /**
    * @dev The VTHO balance of the target account doesn not meet the triggerBalance.
    */
-  error InsufficientBalance(uint256 available, uint256 required);
+  error Trader__InsufficientBalance(uint256 available, uint256 required);
 
   /**
    * @dev Transfer VTHO for target account to the Trader contract failed.
    */
-  error TransferFromFailed(address from, uint256 amount);
+  error Trader__TransferFromFailed(address from, uint256 amount);
 
   /**
    * @dev Giving approval for VTHO spending to a DEX has failed.
    */
-  error ApproveFailed();
+  error Trader__ApproveFailed();
 
   /**
    * @dev Prevents calling a function from anyone except the owner.
    */
   modifier onlyOwner() {
-    if (msg.sender != owner) revert NotOwner(msg.sender);
+    if (msg.sender != owner) revert Trader__NotOwner(msg.sender);
     _;
   }
 
@@ -151,7 +151,7 @@ contract Trader {
    * @dev Prevents calling a function from anyone except the admin.
    */
   modifier onlyAdmin() {
-    if (msg.sender != admin) revert NotAdmin(msg.sender);
+    if (msg.sender != admin) revert Trader__NotAdmin(msg.sender);
     _;
   }
 
@@ -160,7 +160,7 @@ contract Trader {
    * as well as the available DEXs.
    */
   constructor(address routerAddress) {
-    if (routerAddress == address(0)) revert ZeroAddress();
+    if (routerAddress == address(0)) revert Trader__ZeroAddress();
     owner = msg.sender;
     router = IUniswapV2Router02(routerAddress);
   }
@@ -175,9 +175,9 @@ contract Trader {
     uint256 triggerBalance,
     uint256 reserveBalance
   ) external {
-		if (triggerBalance == 0) revert InvalidTrigger();
-		if (reserveBalance == 0) revert InvalidReserve();
-    if (triggerBalance <= reserveBalance) revert InvalidConfig(triggerBalance, reserveBalance);
+		if (triggerBalance == 0) revert Trader__InvalidTrigger();
+		if (reserveBalance == 0) revert Trader__InvalidReserve();
+    if (triggerBalance <= reserveBalance) revert Trader__InvalidConfig(triggerBalance, reserveBalance);
     // TODO: reserveBalance < MAX_WITHDRAW_AMOUNT
     // TODO: what about triggerBalance < MAX_...
     // TODO: triggerBalance - reserveBalance should be big enough to make the tx worth it
@@ -192,10 +192,10 @@ contract Trader {
    *
    * The caller must have owner role.
    *
-   * The supplied value cannot exceed 30. (Equivalent to 0.3 % fee).
+   * The supplied value must be between 0 and 30 (0% and 0.3% fee respectively).
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
-    if (newFeeMultiplier > 30) revert InvalidFeeMultiplier();
+    if (newFeeMultiplier > 30) revert Trader__InvalidFeeMultiplier();
     feeMultiplier = newFeeMultiplier;
   }
 
@@ -239,15 +239,18 @@ contract Trader {
   // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
 	function swap(
     address payable account,
-    // uint256 withdrawAmount,
+    /* uint256 withdrawAmount, */
     uint256 maxRate
-  ) external onlyAdmin {
+  )
+    external
+    onlyAdmin
+  {
     SwapConfig memory config = addressToConfig[account];
     uint256 balance = vtho.balanceOf(account);
 
-		if (config.triggerBalance == 0) revert InvalidTrigger();
-		if (config.reserveBalance == 0) revert InvalidReserve();
-		if (balance < config.triggerBalance) revert InsufficientBalance(balance, config.triggerBalance);
+		if (config.triggerBalance == 0) revert Trader__InvalidTrigger();
+		if (config.reserveBalance == 0) revert Trader__InvalidReserve();
+		if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
 
     uint256 withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
       ? MAX_WITHDRAW_AMOUNT
@@ -258,22 +261,25 @@ contract Trader {
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
     // Transfer the specified amount of VTHO to this contract.
-		if (!vtho.transferFrom(account, address(this), withdrawAmount)) revert TransferFromFailed(account, withdrawAmount);
+		if (!vtho.transferFrom(account, address(this), withdrawAmount)) revert Trader__TransferFromFailed(account, withdrawAmount);
 
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
-    uint256 txFee = tx.gasprice * SWAP_GAS;
+    // Calulate transaction fee. We paid this cost upfront so it's time to get paid back.
+    uint256 txFee = SWAP_GAS * tx.gasprice;
 
-    // Calculate protocolFee once txFee has been deduced
+    // Calculate protocolFee once txFee has been deduced.
     uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
 
     // TODO: fees should be below certain threshold
+    // Deduce fees and exchange the remaining amount for VET tokens.
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
-    // Lower bound for the expected output amount.
+
+    // Calculate the minimum expected output.
     uint256 amountOutMin = amountIn / maxRate;
 
     // Approve the router to spend VTHO.
-    if (!vtho.approve(address(router), amountIn)) revert ApproveFailed();
+    if (!vtho.approve(address(router), amountIn)) revert Trader__ApproveFailed();
 
     // TODO: check for the best exchange rate on chain instead of passing an exchange parameter?
 
@@ -295,6 +301,7 @@ contract Trader {
       account,
       withdrawAmount,
       tx.gasprice,
+      // TODO: feeMultiplier
       protocolFee,
       maxRate,
       // TODO: add amountIn
@@ -302,12 +309,4 @@ contract Trader {
       amounts[amounts.length - 1]
     );
 	}
-
-  /**
-   * @notice Calculate protocol fee applied to the given amount.
-   */
-  function _calcProtocolFee(uint256 amount) internal view returns (uint256) {
-    return amount * feeMultiplier / 10_000;
-  }
-
 }
