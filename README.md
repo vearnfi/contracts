@@ -205,3 +205,11 @@ cd into `hardhat` folder and run `npm init vite` selecting the `svelte` option.
 
 - [https://blog.vechain.energy/how-to-swap-tokens-in-a-contract-c82082024aed](https://blog.vechain.energy/how-to-swap-tokens-in-a-contract-c82082024aed)
 - [https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/trading-from-a-smart-contract](https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/trading-from-a-smart-contract)
+
+# Debug
+
+- Set breakpoint
+- (VSCode) Open Javascript Debug Terminal
+- nvm use 16
+- npm run test
+- On the DEBUG CONSOLE you can interact with the variables

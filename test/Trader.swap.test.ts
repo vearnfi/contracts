@@ -173,7 +173,7 @@ describe('Trader.swap', function () {
         const _gasprice = bn(args[2])
         const _protocolFee = bn(args[3])
 
-        const txFee = _gasprice.mul(SWAP_GAS)
+        const txFee = _gasprice.mul(SWAP_GAS) // TODO: this should equal gasUsed * effectiveGasPrice coming from the tx receipt
 
         console.log({ protocolFee: _protocolFee.toString() })
         console.log({ withdrawAmount: _withdrawAmount.toString() })

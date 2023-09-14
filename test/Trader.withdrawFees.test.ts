@@ -11,7 +11,7 @@ const {
   constants,
 } = ethers
 
-describe('Trader.withdraw', function () {
+describe('Trader.withdrawFees', function () {
   it('should be possible for the owner to withdraw accrued fees', async function () {
     const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
 
@@ -55,7 +55,7 @@ describe('Trader.withdraw', function () {
     // Make sure both tx fees and protocol fees has been collected
     expect(traderBalanceVTHO_1).to.equal(accruedFees)
 
-    const tx4 = await trader.connect(owner).withdraw()
+    const tx4 = await trader.connect(owner).withdrawFees()
     await tx4.wait()
 
     // Read `Transfer` event from energy contract.
@@ -125,7 +125,7 @@ describe('Trader.withdraw', function () {
     expect(traderBalanceVTHO_1).to.equal(accruedFees)
 
     for (const signer of [admin, alice]) {
-      await expect(trader.connect(signer).withdraw()).to.be.reverted
+      await expect(trader.connect(signer).withdrawFees()).to.be.reverted
     }
   })
 

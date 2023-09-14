@@ -30,7 +30,8 @@ describe('Energy', function () {
   it('should provide a positive initial balance for all test accounts', async function () {
     const { energy, god, alice } = await fixture()
 
-    expect(await energy.balanceOf(god.address)).to.be.gt(0)
-    expect(await energy.balanceOf(alice.address)).to.be.gt(0)
+    for (const signer of[god, alice]) {
+      expect(await energy.balanceOf(signer.address)).to.be.gt(0)
+    }
   })
 })
