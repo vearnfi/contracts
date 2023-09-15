@@ -32,7 +32,7 @@ describe('Trader.swap', function () {
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
     const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
-    const swapReceipt = await tx3.wait()
+    await tx3.wait()
 
     // Get VET balance after swap
     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
