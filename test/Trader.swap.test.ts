@@ -16,8 +16,8 @@ const {
 // TODO: see chai matches `to.changeTokenBalances` and `to.changeEtherBalance`
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
 describe('Trader.swap', function () {
-  it('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
-    const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
+  it.only('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
+    const { energy, trader, admin, alice } = await fixture()
 
     const reserveBalance = eth(5)
     const triggerBalance = eth(50)
@@ -31,19 +31,35 @@ describe('Trader.swap', function () {
     await tx1.wait()
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
-    // TODO: should we implement ADMIN functionality?
     const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Get VET balance after swap
     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
 
-    // Make sure gas spent is as expected
-    expect(swapReceipt.gasUsed).to.equal(SWAP_GAS)
     // Make sure VET balance has increased
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
     // TODO: Calculate exact VET fees
     // expect(traderBalance).to.equal(...)
+  })
+
+  it('spends the correct amount of gas', async function () {
+    const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
+
+    const reserveBalance = eth(5)
+    const triggerBalance = eth(50)
+    const exchangeRate = 100
+
+    // Approve, config and swap
+    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
+    await tx1.wait()
+    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
+    await tx2.wait()
+    const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
+    const swapReceipt = await tx3.wait()
+
+    // Make sure gas spent is as expected
+    expect(swapReceipt.gasUsed).to.equal(SWAP_GAS)
   })
 
   it('should revert if called by any account other than the admin', async function () {

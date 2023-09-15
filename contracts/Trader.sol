@@ -23,6 +23,7 @@ contract Trader {
    * @dev Interface to interact with the Energy/VTHO contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
+  // TODO: is it OK to set a contract instance as a constant or immutable
 
   /**
    * @dev Interface to interact with the UniswapV2 router.
@@ -61,6 +62,7 @@ contract Trader {
    * @dev Gas consumed by the swap function.
    */
   uint256 public constant SWAP_GAS = 268677;
+  // TODO: SWAP_GAS should be private
 
   /**
    * @dev Dictionary matching address accounts to swap configurations.
@@ -161,6 +163,7 @@ contract Trader {
    */
   constructor(address routerAddress) {
     if (routerAddress == address(0)) revert Trader__ZeroAddress();
+
     owner = msg.sender;
     router = IUniswapV2Router02(routerAddress);
   }
@@ -245,34 +248,42 @@ contract Trader {
     external
     onlyAdmin
   {
+    // Read target account swap configuration from storage.
     SwapConfig memory config = addressToConfig[account];
-    uint256 balance = vtho.balanceOf(account);
 
+    // Make sure configuration has been initialized.
+    // TODO: I think we don't need both checks. Only one should be enough
 		if (config.triggerBalance == 0) revert Trader__InvalidTrigger();
 		if (config.reserveBalance == 0) revert Trader__InvalidReserve();
-		if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
 
+    // Fetch VTHO target account balance.
+    uint256 balance = vtho.balanceOf(account);
+
+    // Make sure balance is above trigger amount.
+    if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
+
+    // Enforce a cap to the withdraw amount and make sure the reserveBalance is kept in the account.
     uint256 withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
       ? MAX_WITHDRAW_AMOUNT
       : balance - config.reserveBalance;
-		// require(withdrawAmount >= config.triggerBalance, "Trader: unauthorized amount");
-		// require(config.reserveBalance >= vtho.balanceOf(account) - withdrawAmount, "Trader: insufficient reserve");
     // TODO: once exchangeId is set, test routerAddress != address(0)
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
     // Transfer the specified amount of VTHO to this contract.
-		if (!vtho.transferFrom(account, address(this), withdrawAmount)) revert Trader__TransferFromFailed(account, withdrawAmount);
+    if (!vtho.transferFrom(account, address(this), withdrawAmount)) {
+      revert Trader__TransferFromFailed(account, withdrawAmount);
+    }
 
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
-    // Calulate transaction fee. We paid this cost upfront so it's time to get paid back.
+    // Calulate transaction fee. We paid this upfront so it's time to get paid back.
     uint256 txFee = SWAP_GAS * tx.gasprice;
 
     // Calculate protocolFee once txFee has been deduced.
     uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
 
     // TODO: fees should be below certain threshold
-    // Deduce fees and exchange the remaining amount for VET tokens.
+    // Substract fees and exchange the remaining VHTO amount for VET tokens.
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
 
     // Calculate the minimum expected output.
