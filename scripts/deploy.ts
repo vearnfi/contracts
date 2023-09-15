@@ -6,8 +6,7 @@ async function main() {
   console.log('Deploying contract...')
   console.log(`Using network ${hre.network.name} (${hre.network.config.chainId})`)
 
-  const signers = await hre.ethers.getSigners()
-  const deployer = signers[0]
+  const [deployer] = await hre.ethers.getSigners()
 
   const Trader = await hre.ethers.getContractFactory('Trader')
   const trader = await Trader.connect(deployer).deploy(VEROCKET_UNI_ROUTER_ADDRESS)

@@ -1,19 +1,18 @@
 import { ethers } from 'hardhat'
-import type { BigNumber, ContractReceipt } from 'ethers'
-import type { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { ENERGY_CONTRACT_ADDRESS } from '../../constants'
+import { Energy, UniswapV2Pair } from '../../typechain-types'
 import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
+import { eth } from './eth'
 
 chai.use(solidity)
 
 const {
   getSigners,
   getContractFactory,
-  utils: { parseUnits, hexlify },
-  BigNumber: { from: bn },
+  utils: { hexlify },
   Contract,
   constants,
   provider,
@@ -22,7 +21,7 @@ const {
 export async function fixture() {
   const [god, owner, admin, alice, bob] = await getSigners()
 
-  const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god)
+  const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god) as Energy
 
   expect(await provider.getCode(energy.address)).not.to.have.length(0)
 
@@ -46,13 +45,21 @@ export async function fixture() {
 
   expect(await provider.getCode(trader.address)).not.to.have.length(0)
 
-  // Provide liquidity for the VVET-VTHO pool
+  // Set Trader contract admin
+  expect(await trader.admin()).to.equal(constants.AddressZero)
+
+  const tx0 = await trader.connect(owner).setAdmin(admin.address)
+  await tx0.wait()
+
+  expect(await trader.admin()).to.equal(admin.address)
+
+  // Create VVET9-VTHO pair
   const tx1 = await factory.createPair(energy.address, vvet9.address)
   await tx1.wait()
 
   const pairAddress = await factory.getPair(energy.address, vvet9.address)
 
-  const pair = new Contract(pairAddress, pairArtifact.abi, god)
+  const pair = new Contract(pairAddress, pairArtifact.abi, god) as UniswapV2Pair
 
   expect(await provider.getCode(pair.address)).not.to.have.length(0)
 
@@ -60,13 +67,12 @@ export async function fixture() {
   expect(reserves[0]).to.equal(0)
   expect(reserves[1]).to.equal(0)
 
-  // Add liquidity
+  // Provide liquidity with a 1 VVET9 - 20 VTHO exchange rate
   const approval = await energy.connect(god).approve(router.address, constants.MaxUint256)
   await approval.wait()
 
-  // Rate 1 VVET - 20 VTHO
-  const token0Amount = parseUnits('20000', 18) // energy
-  const token1Amount = parseUnits('1000', 18) // vvet
+  const token0Amount = eth(20000) // energy/vtho
+  const token1Amount = eth(1000) // vvet9
 
   const addLiquidityTx = await router.connect(god).addLiquidityETH(
     energy.address, // token
@@ -80,49 +86,27 @@ export async function fixture() {
 
   await addLiquidityTx.wait()
 
-  // Validate updated reserves
+  // Validate reserves
   const reserves2 = await pair.getReserves()
   expect(reserves2[0]).to.equal(token0Amount)
   expect(reserves2[1]).to.equal(token1Amount)
 
-  const SWAP_GAS_AMOUNT = (await trader.SWAP_GAS_AMOUNT()) as BigNumber
-  const MAX_VTH0_WITHDRAW_AMOUNT = (await trader.MAX_VTHO_WITHDRAWAL_AMOUNT()) as BigNumber
-  console.log({ SWAP_GAS_AMOUNT })
+  const SWAP_GAS = await trader.SWAP_GAS()
+  const MAX_WITHDRAW_AMOUNT = await trader.MAX_WITHDRAW_AMOUNT()
+  console.log({ SWAP_GAS })
 
-  /**
-   * Approve Trader contract for VTHO token spending in behalf of signer.
-   * @param {SignerWithAddress} signer Signer account.
-   */
-  async function approve(signer: SignerWithAddress): Promise<ContractReceipt> {
-    const tx = await energy.connect(signer).approve(trader.address, constants.MaxUint256)
-    return await tx.wait()
-  }
-
-  /**
-   * Save signer configuration into Trader contract.
-   * @param {SignerWithAddress} signer Signer account.
-   * @param {BigNumber} reserveBalance Reserve balance.
-   * @param {BigNumber} triggerBalance Trigger balance.
-   */
-  async function saveConfig(
-    signer: SignerWithAddress,
-    reserveBalance: BigNumber,
-    triggerBalance: BigNumber,
-  ): Promise<ContractReceipt> {
-    const tx = await trader.connect(signer).saveConfig(triggerBalance, reserveBalance)
-    return await tx.wait()
-  }
-
-  /**
-   * Wrapper around the Trader.swap function.
-   * @param {string} targetAddress Account from which the funds are being withdrawn.
-   * @param {number} exchangeRate Max accepted exchange rate.
-   * @return Transaction receipt.
-   */
-  async function swap(targetAddress: string, exchangeRate: number): Promise<ContractReceipt> {
-    const tx = await trader.connect(admin).swap(targetAddress, exchangeRate)
-    return await tx.wait()
-  }
+  // Burn all VET from all test accounts in order to avoid changes
+  // in VTHO account balance
+  // for (const signer of [god, owner, admin, alice, bob]) {
+  //   const signerBalanceVET_0 = await provider.getBalance(signer.address)
+  //   const tx = await signer.sendTransaction({
+  //     to: constants.AddressZero,
+  //     value: signerBalanceVET_0,
+  //   })
+  //   await tx.wait()
+  //   const signerBalanceVET_1 = await provider.getBalance(signer.address)
+  //   expect(signerBalanceVET_1).to.equal(0)
+  // }
 
   return {
     god,
@@ -136,10 +120,7 @@ export async function fixture() {
     router,
     pair,
     trader,
-    SWAP_GAS_AMOUNT,
-    MAX_VTH0_WITHDRAW_AMOUNT,
-    approve,
-    saveConfig,
-    swap,
+    SWAP_GAS,
+    MAX_WITHDRAW_AMOUNT,
   }
 }
