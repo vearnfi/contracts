@@ -29,7 +29,7 @@ describe('Trader.withdrawFees', function () {
     await tx1.wait()
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Read Swap event
@@ -98,7 +98,7 @@ describe('Trader.withdrawFees', function () {
     await tx1.wait()
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Read Swap event

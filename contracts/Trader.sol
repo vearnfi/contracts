@@ -176,13 +176,14 @@ contract Trader {
    * as well as the available DEXs.
    */
   constructor(address[] memory routers_) {
-    // if (routerAddress == address(0)) revert Trader__ZeroAddress();
 
     // Set deployer as the owner.
     owner = msg.sender;
 
     // Initialize uniV2 routers.
     for (uint8 i = 0; i < 2; i++) {
+      if (routers_[i] == address(0)) revert Trader__ZeroAddress();
+
       routers[i] = routers_[i];
     }
   }
@@ -279,6 +280,8 @@ contract Trader {
     // Fetch VTHO target account balance.
     uint balance = vtho.balanceOf(account);
 
+    // Make sure we don't get sandwiched
+    // pair.getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
     // Make sure balance is above trigger amount.
     if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
 
@@ -291,6 +294,8 @@ contract Trader {
       : balance - config.reserveBalance;
     // TODO: once exchangeId is set, test routerAddress != address(0)
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
+
+    // TODO: can we avoid being sandwiched by requesting for amountIn < alpha * reserve
 
     // Transfer the specified amount of VTHO to this contract.
     if (!vtho.transferFrom(account, address(this), withdrawAmount)) {

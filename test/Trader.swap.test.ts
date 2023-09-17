@@ -16,7 +16,7 @@ const {
 // TODO: see chai matches `to.changeTokenBalances` and `to.changeEtherBalance`
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
 describe('Trader.swap', function () {
-  it.only('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
+  it('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
     const { energy, trader, admin, alice } = await fixture()
 
     const reserveBalance = eth(5)
@@ -31,7 +31,7 @@ describe('Trader.swap', function () {
     await tx1.wait()
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
     await tx3.wait()
 
     // Get VET balance after swap
@@ -55,7 +55,7 @@ describe('Trader.swap', function () {
     await tx1.wait()
     const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Make sure gas spent is as expected
@@ -76,7 +76,7 @@ describe('Trader.swap', function () {
     await tx2.wait()
 
     for (const signer of [owner, alice, bob]) {
-      await expect(trader.connect(signer).swap(alice.address, exchangeRate)).to.be.reverted
+      await expect(trader.connect(signer).swap(alice.address, 0, exchangeRate)).to.be.reverted
     }
   })
 
@@ -171,7 +171,7 @@ describe('Trader.swap', function () {
         console.log('BOB EXACT BALANCE')
 
         // Swap
-        const tx3 = await trader.connect(admin).swap(bob.address, exchangeRate)
+        const tx3 = await trader.connect(admin).swap(bob.address, 0, exchangeRate)
         const swapReceipt = await tx3.wait()
 
         // Read Swap event
