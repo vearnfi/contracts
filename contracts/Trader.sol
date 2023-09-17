@@ -15,9 +15,20 @@ contract Trader {
    * @dev Account configuration that needs to be met in order to trigger a swap for the said account.
    */
   struct SwapConfig {
-    uint256 triggerBalance;
-    uint256 reserveBalance;
+    uint triggerBalance;
+    uint reserveBalance;
   }
+
+  struct SwapArgs {
+    uint txFee;
+    uint protocolFee;
+    uint amountIn;
+    uint amountOutMin;
+  }
+  // struct Fees {
+  //   uint txFee;
+  //   uint protocolFee;
+  // }
 
   /**
    * @dev Interface to interact with the Energy/VTHO contract.
@@ -28,7 +39,8 @@ contract Trader {
   /**
    * @dev Interface to interact with the UniswapV2 router.
    */
-  IUniswapV2Router02 public router;
+  // IUniswapV2Router02 public router;
+  address[] public routers = new address[](2);
 
   /**
    * @dev Protocol owner.
@@ -36,6 +48,7 @@ contract Trader {
    * The owner is the only role with access to the setFeeMultiplier, setAdmin and withdrawFees functions.
    */
   address public immutable owner;
+  // TODO: this should be private
 
   /**
    * @dev Protocol admin.
@@ -43,11 +56,12 @@ contract Trader {
    * The admin is the only role with access to swap function.
    */
   address public admin;
+  // TODO: this should be private
 
   /**
    * @dev Multiplier used to calculate protocol fee based on the following formula:
    *
-   * uint256 protocolFee = amount * feeMultiplier / 10_000.
+   * uint protocolFee = amount * feeMultiplier / 10_000.
    *
    * For instance, if feeMultiplier equals 30, it means we are applying a 0.3 % fee.
    */
@@ -56,12 +70,12 @@ contract Trader {
   /**
    * @dev Maximum VTHO amount that can be withdrawn in one trade.
    */
-  uint256 public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
+  uint public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
 
   /**
    * @dev Gas consumed by the swap function.
    */
-  uint256 public constant SWAP_GAS = 268677;
+  uint public constant SWAP_GAS = 268677;
   // TODO: SWAP_GAS should be private
 
   /**
@@ -74,8 +88,8 @@ contract Trader {
    */
   event Config(
     address indexed account,
-    uint256 triggerBalance,
-    uint256 reserveBalance
+    uint triggerBalance,
+    uint reserveBalance
   );
 
   /**
@@ -83,12 +97,12 @@ contract Trader {
    */
   event Swap(
     address indexed account,
-    uint256 withdrawAmount,
-    uint256 gasPrice,
-    uint256 protocolFee,
-    uint256 maxRate,
-    uint256 amountOutMin,
-    uint256 amountOut
+    uint withdrawAmount,
+    uint gasPrice,
+    uint protocolFee,
+    uint maxRate,
+    uint amountOutMin,
+    uint amountOut
   );
 
   /**
@@ -124,17 +138,17 @@ contract Trader {
   /**
    * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
    */
-  error Trader__InvalidConfig(uint256 triggerBalance, uint256 reserveBalance);
+  error Trader__InvalidConfig(uint triggerBalance, uint reserveBalance);
 
   /**
    * @dev The VTHO balance of the target account doesn not meet the triggerBalance.
    */
-  error Trader__InsufficientBalance(uint256 available, uint256 required);
+  error Trader__InsufficientBalance(uint available, uint required);
 
   /**
    * @dev Transfer VTHO for target account to the Trader contract failed.
    */
-  error Trader__TransferFromFailed(address from, uint256 amount);
+  error Trader__TransferFromFailed(address from, uint amount);
 
   /**
    * @dev Giving approval for VTHO spending to a DEX has failed.
@@ -158,14 +172,19 @@ contract Trader {
   }
 
   /**
-   * @dev Initializes the contract setting the address of the deployer as the initial owner
+   * @dev Initializes the contract setting the address of the deployer as the owner
    * as well as the available DEXs.
    */
-  constructor(address routerAddress) {
-    if (routerAddress == address(0)) revert Trader__ZeroAddress();
+  constructor(address[] memory routers_) {
+    // if (routerAddress == address(0)) revert Trader__ZeroAddress();
 
+    // Set deployer as the owner.
     owner = msg.sender;
-    router = IUniswapV2Router02(routerAddress);
+
+    // Initialize uniV2 routers.
+    for (uint8 i = 0; i < 2; i++) {
+      routers[i] = routers_[i];
+    }
   }
 
   // If neither a *receive* Ether nor a payable *fallback* function is present,
@@ -175,8 +194,8 @@ contract Trader {
   // the fact that we didn't specify a fallback fn
 
   function saveConfig(
-    uint256 triggerBalance,
-    uint256 reserveBalance
+    uint triggerBalance,
+    uint reserveBalance
   ) external {
 		if (triggerBalance == 0) revert Trader__InvalidTrigger();
 		if (reserveBalance == 0) revert Trader__InvalidReserve();
@@ -242,8 +261,9 @@ contract Trader {
   // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
 	function swap(
     address payable account,
-    /* uint256 withdrawAmount, */
-    uint256 maxRate
+    uint8 routerIndex,
+    /* uint withdrawAmount, */
+    uint maxRate
   )
     external
     onlyAdmin
@@ -257,13 +277,16 @@ contract Trader {
 		if (config.reserveBalance == 0) revert Trader__InvalidReserve();
 
     // Fetch VTHO target account balance.
-    uint256 balance = vtho.balanceOf(account);
+    uint balance = vtho.balanceOf(account);
 
     // Make sure balance is above trigger amount.
     if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
 
     // Enforce a cap to the withdraw amount and make sure the reserveBalance is kept in the account.
-    uint256 withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
+    // TODO: can we simplify this using Math.min(balance - config.reserveBalance, MAX_WITHDRAW_AMOUNT)
+    // Then, is we remove triggerBalance, we can remove the balance variable and use vtho.balanceOf(account)
+    // directly inside the Math.min(...)
+    uint withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
       ? MAX_WITHDRAW_AMOUNT
       : balance - config.reserveBalance;
     // TODO: once exchangeId is set, test routerAddress != address(0)
@@ -274,37 +297,53 @@ contract Trader {
       revert Trader__TransferFromFailed(account, withdrawAmount);
     }
 
+    SwapArgs memory args = _calcSwapArgs(withdrawAmount, maxRate);
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
-    // Calulate transaction fee. We paid this upfront so it's time to get paid back.
-    uint256 txFee = SWAP_GAS * tx.gasprice;
+    // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
+    // uint txFee = SWAP_GAS * tx.gasprice;
 
     // Calculate protocolFee once txFee has been deduced.
-    uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+    // uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+    // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
+    // Fees memory fees = _calcFees(withdrawAmount);
 
     // TODO: fees should be below certain threshold
     // Substract fees and exchange the remaining VHTO amount for VET tokens.
-    uint256 amountIn = withdrawAmount - txFee - protocolFee;
+    // uint amountIn = withdrawAmount - txFee - protocolFee;
+    // uint amountIn = withdrawAmount - fees.txFee - fees.protocolFee;
 
     // Calculate the minimum expected output.
-    uint256 amountOutMin = amountIn / maxRate;
+    // uint amountOutMin = amountIn / maxRate;
+
+    // Initialize router for the chosen DEX.
+    IUniswapV2Router02 router = IUniswapV2Router02(routers[routerIndex]);
 
     // Approve the router to spend VTHO.
-    if (!vtho.approve(address(router), amountIn)) revert Trader__ApproveFailed();
+    // if (!vtho.approve(address(router), amountIn)) revert Trader__ApproveFailed();
+    if (!vtho.approve(address(router), args.amountIn)) revert Trader__ApproveFailed();
 
     // TODO: check for the best exchange rate on chain instead of passing an exchange parameter?
+    // uint[] memory amounts = router.getAmountsOut(amountIn, path);
 
     // TODO: amountOutMin must be retrieved from an oracle of some kind
     address[] memory path = new address[](2);
     path[0] = address(vtho);
     path[1] = router.WETH();
     uint[] memory amounts = router.swapExactTokensForETH(
-      amountIn,
-      amountOutMin,
+      args.amountIn,
+      args.amountOutMin,
       path,
       account,
       block.timestamp // What about deadline?
     );
+    // uint[] memory amounts = router.swapExactTokensForETH(
+    //   amountIn,
+    //   amountOutMin,
+    //   path,
+    //   account,
+    //   block.timestamp // What about deadline?
+    // );
 
     // TODO: should we assert previousVETBalance > newVETBalance?
 
@@ -313,11 +352,39 @@ contract Trader {
       withdrawAmount,
       tx.gasprice,
       // TODO: feeMultiplier
-      protocolFee,
+      // protocolFee,
+      args.protocolFee,
+      // fees.protocolFee,
       maxRate,
       // TODO: add amountIn
-      amountOutMin,
+      // amountOutMin,
+      args.amountOutMin,
       amounts[amounts.length - 1]
     );
 	}
+
+  // function _calcTxFee() internal view returns (uint) {
+  //   return SWAP_GAS * tx.gasprice;
+  // }
+
+  // function _calcProtocolFee(uint amount) internal view returns (uint) {
+  //   return amount * feeMultiplier / 10_000;
+  // }
+
+  function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
+
+    uint txFee = SWAP_GAS * tx.gasprice;
+
+    // Calculate protocolFee once txFee has been deduced.
+    // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
+    uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+
+    // Substract fees and exchange the remaining VHTO amount for VET tokens.
+    uint amountIn = withdrawAmount - txFee - protocolFee;
+
+    // Calculate the minimum expected output.
+    uint amountOutMin = amountIn / maxRate;
+
+    return SwapArgs(txFee, protocolFee, amountIn, amountOutMin);
+  }
 }
