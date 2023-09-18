@@ -377,7 +377,8 @@ contract Trader {
   // }
 
   function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
-
+    // TODO: should we set a gasLimit in price?
+    // We are setting a low gas prive when submitting the tx.
     uint txFee = SWAP_GAS * tx.gasprice;
 
     // Calculate protocolFee once txFee has been deduced.

@@ -7,6 +7,7 @@ import '@vechain/hardhat-vechain'
 import '@vechain/hardhat-ethers'
 import 'solidity-coverage'
 import '@typechain/hardhat'
+// import 'hardhat-gas-reporter'
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -58,6 +59,14 @@ const config: HardhatUserConfig = {
       chainId: 100010,
       // @ts-ignore
       privateKey: process.env.WALLET_PRIVATE_KEY,
+      // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
+      blockGasLimit: 10000000,
+    },
+    'vechain-mainnet': {
+      url: 'https://mainnet.veblocks.net',
+      chainId: 100009,
+      // @ts-ignore
+      // privateKey: process.env.WALLET_PRIVATE_KEY,
       // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
       blockGasLimit: 10000000,
     },

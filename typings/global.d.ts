@@ -1,5 +1,5 @@
 namespace NodeJS {
   interface ProcessEnv {
-    VEROCKET_UNI_ROUTER_ADDRESS: string
+    WALLET_PRIVATE_KEY: string
   }
 }
