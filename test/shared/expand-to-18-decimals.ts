@@ -6,6 +6,6 @@ import type { BigNumber } from 'ethers'
  * @param {number} amount Amount to be expanded.
  * @return {BigNumber} Expanded representation of the given number.
  */
-export function eth(amount: number): BigNumber {
+export function expandTo18Decimals(amount: number): BigNumber {
   return ethers.utils.parseUnits(amount.toString(), 18)
 }

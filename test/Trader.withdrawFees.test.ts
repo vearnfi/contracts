@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
-import { eth } from './shared/eth'
+import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 
 chai.use(solidity)
 
@@ -15,8 +15,8 @@ describe('Trader.withdrawFees', function () {
   it('should be possible for the owner to withdraw accrued fees', async function () {
     const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
 
-    const reserveBalance = eth(5)
-    const triggerBalance = eth(50)
+    const reserveBalance = expandTo18Decimals(5)
+    const triggerBalance = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Get accrued fees before the swap.
@@ -84,8 +84,8 @@ describe('Trader.withdrawFees', function () {
   it('should revert if not authorized account attempts to withdraw fees', async function () {
     const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
 
-    const reserveBalance = eth(5)
-    const triggerBalance = eth(50)
+    const reserveBalance = expandTo18Decimals(5)
+    const triggerBalance = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Get accrued fees before the swap.

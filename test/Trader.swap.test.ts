@@ -3,7 +3,7 @@ import type { BigNumber } from 'ethers'
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
-import { eth } from './shared/eth'
+import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 
 chai.use(solidity)
 
@@ -19,8 +19,8 @@ describe('Trader.swap', function () {
   it('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
     const { energy, trader, admin, alice } = await fixture()
 
-    const reserveBalance = eth(5)
-    const triggerBalance = eth(50)
+    const reserveBalance = expandTo18Decimals(5)
+    const triggerBalance = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Get VET balance before swap
@@ -46,8 +46,8 @@ describe('Trader.swap', function () {
   it('spends the correct amount of gas', async function () {
     const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
 
-    const reserveBalance = eth(5)
-    const triggerBalance = eth(50)
+    const reserveBalance = expandTo18Decimals(5)
+    const triggerBalance = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Approve, config and swap
@@ -65,8 +65,8 @@ describe('Trader.swap', function () {
   it('should revert if called by any account other than the admin', async function () {
     const { energy, trader, owner, alice, bob } = await fixture()
 
-    const reserveBalance = eth(5)
-    const triggerBalance = eth(50)
+    const reserveBalance = expandTo18Decimals(5)
+    const triggerBalance = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Approve, config and swap
@@ -81,9 +81,9 @@ describe('Trader.swap', function () {
   })
 
   describe.skip('Fees accrual', function () {
-    const _MAX_WITHDRAW_AMOUNT = eth(1000)
-    const reserveBalance = eth(5)
-    const triggerBalance = eth(50)
+    const _MAX_WITHDRAW_AMOUNT = expandTo18Decimals(1000)
+    const reserveBalance = expandTo18Decimals(5)
+    const triggerBalance = expandTo18Decimals(50)
     const exchangeRate = 100
 
     const testCases: { balance: BigNumber; withdrawAmount: BigNumber }[] = [
@@ -132,7 +132,7 @@ describe('Trader.swap', function () {
         console.log('EMPTY CONTRACT BALANCE')
 
         // Transfer some funds to bob to pay for txs
-        const tx0 = await energy.connect(alice).transfer(bob.address, eth(1000))
+        const tx0 = await energy.connect(alice).transfer(bob.address, expandTo18Decimals(1000))
         await tx0.wait()
         console.log('TRANSAFER FROM A TO B')
 

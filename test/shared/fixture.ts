@@ -5,7 +5,7 @@ import { ENERGY_CONTRACT_ADDRESS, SUPPORTED_DEXS_COUNT } from '../../constants'
 import { Energy, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../typechain-types'
 import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
-import { eth } from './eth'
+import { expandTo18Decimals } from './expand-to-18-decimals'
 
 chai.use(solidity)
 
@@ -83,8 +83,8 @@ export async function fixture() {
     const approval = await energy.connect(god).approve(router.address, constants.MaxUint256)
     await approval.wait()
 
-    const token0Amount = eth(20000) // energy/vtho
-    const token1Amount = eth(1000) // vvet9
+    const token0Amount = expandTo18Decimals(20000) // energy/vtho
+    const token1Amount = expandTo18Decimals(1000) // vvet9
 
     const addLiquidityTx = await router.connect(god).addLiquidityETH(
       energy.address, // token
