@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.4;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
@@ -14,10 +14,10 @@ contract Trader {
   /**
    * @dev Account configuration that needs to be met in order to trigger a swap for the said account.
    */
-  struct SwapConfig {
-    uint triggerBalance;
-    uint reserveBalance;
-  }
+  // struct SwapConfig {
+  //   uint triggerBalance;
+  //   uint reserveBalance;
+  // }
 
   struct SwapArgs {
     uint txFee;
@@ -79,16 +79,15 @@ contract Trader {
   // TODO: SWAP_GAS should be private
 
   /**
-   * @dev Dictionary matching address accounts to swap configurations.
+   * @dev Dictionary matching address accounts to reserveBalance.
    */
-  mapping(address => SwapConfig) public addressToConfig;
+  mapping(address => uint) public reserves;
 
   /**
    * @dev Account has set a new swap configuration.
    */
   event Config(
     address indexed account,
-    uint triggerBalance,
     uint reserveBalance
   );
 
@@ -126,24 +125,14 @@ contract Trader {
   error Trader__InvalidFeeMultiplier();
 
   /**
-   * @dev The provided triggerBalance value is higher than the maximum allowed or zero.
-   */
-  error Trader__InvalidTrigger();
-
-  /**
    * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
    */
   error Trader__InvalidReserve();
 
   /**
-   * @dev The provided reserveBalance value is higher than the maximum allowed or zero.
-   */
-  error Trader__InvalidConfig(uint triggerBalance, uint reserveBalance);
-
-  /**
    * @dev The VTHO balance of the target account doesn not meet the triggerBalance.
    */
-  error Trader__InsufficientBalance(uint available, uint required);
+  error Trader__InsufficientBalance(uint balance, uint withdrawAmount, uint reserveBalance);
 
   /**
    * @dev Transfer VTHO for target account to the Trader contract failed.
@@ -172,11 +161,10 @@ contract Trader {
   }
 
   /**
-   * @dev Initializes the contract setting the address of the deployer as the owner
-   * as well as the available DEXs.
+   * @dev Initializes the contract by setting the list of available DEXs
+   * as well as the contract owner.
    */
   constructor(address[] memory routers_) {
-
     // Set deployer as the owner.
     owner = msg.sender;
 
@@ -194,20 +182,19 @@ contract Trader {
   // TODO: test sending VET or VTHO directly to the contract should revert given
   // the fact that we didn't specify a fallback fn
 
-  function saveConfig(
-    uint triggerBalance,
-    uint reserveBalance
-  ) external {
-		if (triggerBalance == 0) revert Trader__InvalidTrigger();
-		if (reserveBalance == 0) revert Trader__InvalidReserve();
-    if (triggerBalance <= reserveBalance) revert Trader__InvalidConfig(triggerBalance, reserveBalance);
-    // TODO: reserveBalance < MAX_WITHDRAW_AMOUNT
-    // TODO: what about triggerBalance < MAX_...
-    // TODO: triggerBalance - reserveBalance should be big enough to make the tx worth it
+  // TODO: rename to saveReserve? same for the Config event?
+  /**
+   * @dev Associate reserveBalance to the caller.
+   *
+   * Enforce reserveBalance to be non zero so that when the `swap`
+   * method gets called we can verify that the config has been initilized.
+   */
+  function saveConfig(uint reserveBalance) external {
+    if (reserveBalance == 0) revert Trader__InvalidReserve();
 
-    addressToConfig[msg.sender] = SwapConfig(triggerBalance, reserveBalance);
+    reserves[msg.sender] = reserveBalance;
 
-    emit Config(msg.sender, triggerBalance, reserveBalance);
+    emit Config(msg.sender, reserveBalance);
   }
 
   /**
@@ -218,7 +205,9 @@ contract Trader {
    * The supplied value must be between 0 and 30 (0% and 0.3% fee respectively).
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
+    // Ensures the protocol fee can never be higher than 0.3%.
     if (newFeeMultiplier > 30) revert Trader__InvalidFeeMultiplier();
+
     feeMultiplier = newFeeMultiplier;
   }
 
@@ -238,7 +227,8 @@ contract Trader {
    *
    * Accrued fees include both protocol and transaction fees.
    *
-   * Use the `Transfer` event emitted by the Energy contract to track this function.
+   * Use the `Transfer` event emitted by the Energy contract to track this
+   * method call.
    */
   function withdrawFees() external onlyOwner {
     vtho.transfer(owner, vtho.balanceOf(address(this)));
@@ -263,35 +253,48 @@ contract Trader {
 	function swap(
     address payable account,
     uint8 routerIndex,
-    /* uint withdrawAmount, */
-    uint maxRate
+    uint withdrawAmount,
+    uint maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
   )
     external
     onlyAdmin
   {
-    // Read target account swap configuration from storage.
-    SwapConfig memory config = addressToConfig[account];
+    // Fetch reserveBalance for target account.
+    uint reserveBalance = reserves[account];
 
-    // Make sure configuration has been initialized.
-    // TODO: I think we don't need both checks. Only one should be enough
-		if (config.triggerBalance == 0) revert Trader__InvalidTrigger();
-		if (config.reserveBalance == 0) revert Trader__InvalidReserve();
+    // Make sure reserveBalance has been initialized.
+		if (reserveBalance == 0) revert Trader__InvalidReserve();
 
-    // Fetch VTHO target account balance.
+    // Fetch target account balance (VTHO).
     uint balance = vtho.balanceOf(account);
+
+    // Make sure reserveBalance is kept in the account.
+    if (balance < withdrawAmount + reserveBalance) {
+      revert Trader__InsufficientBalance(balance, withdrawAmount, reserveBalance);
+    }
+
+    // TODO: triggerBalance - reserveBalance should be big enough to make the tx worth it
+
+
+    // TODO: balance / vthoReserves < 0.01 (1%) // By enforing this, am I enforcing slippage < some value?
+    // What happens if vthoReserves >>> vetReserves? Let's suppose the pool is inbalanced
+    // This should not happen due to arbitrage oportunity (but could happen via sandwich)
+    // TODO: what if we require withdrawAmount / vthoReserves < 0.01 (1%)
+    // && minAmountOut / vvetReserves < 0.01 (1%)? Would that ensure slippage?
+    // TODO: totalFees / balance < 0.1 (10%)
 
     // Make sure we don't get sandwiched
     // pair.getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
     // Make sure balance is above trigger amount.
-    if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
+    // if (balance < config.triggerBalance) revert Trader__InsufficientBalance(balance, config.triggerBalance);
 
     // Enforce a cap to the withdraw amount and make sure the reserveBalance is kept in the account.
     // TODO: can we simplify this using Math.min(balance - config.reserveBalance, MAX_WITHDRAW_AMOUNT)
     // Then, is we remove triggerBalance, we can remove the balance variable and use vtho.balanceOf(account)
     // directly inside the Math.min(...)
-    uint withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
-      ? MAX_WITHDRAW_AMOUNT
-      : balance - config.reserveBalance;
+    // uint withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
+    //   ? MAX_WITHDRAW_AMOUNT
+    //   : balance - config.reserveBalance;
     // TODO: once exchangeId is set, test routerAddress != address(0)
     // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
 
@@ -340,7 +343,7 @@ contract Trader {
       args.amountOutMin,
       path,
       account,
-      block.timestamp // What about deadline?
+      block.timestamp // TODO: What about deadline?
     );
     // uint[] memory amounts = router.swapExactTokensForETH(
     //   amountIn,
@@ -378,7 +381,7 @@ contract Trader {
 
   function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
     // TODO: should we set a gasLimit in price?
-    // We are setting a low gas prive when submitting the tx.
+    // We are setting a low gas price when submitting the tx.
     uint txFee = SWAP_GAS * tx.gasprice;
 
     // Calculate protocolFee once txFee has been deduced.
@@ -388,7 +391,7 @@ contract Trader {
     // Substract fees and exchange the remaining VHTO amount for VET tokens.
     uint amountIn = withdrawAmount - txFee - protocolFee;
 
-    // Calculate the minimum expected output.
+    // Calculate the minimum expected output (VET).
     uint amountOutMin = amountIn / maxRate;
 
     return SwapArgs(txFee, protocolFee, amountIn, amountOutMin);

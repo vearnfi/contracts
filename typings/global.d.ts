@@ -1,5 +1,5 @@
-namespace NodeJS {
-  interface ProcessEnv {
-    WALLET_PRIVATE_KEY: string
-  }
+declare global {
+  type Address = `0x${string}`
 }
+
+export {}

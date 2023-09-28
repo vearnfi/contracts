@@ -15,12 +15,13 @@ const {
 
 // TODO: see chai matches `to.changeTokenBalances` and `to.changeEtherBalance`
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
+// TODO: test small withdrawAmount
 describe('Trader.swap', function () {
-  it('should work if target account balance is above triggerBalance and the function is called by the admin', async function () {
+  it('should exchange VTHO for VET when the method is called by the admin', async function () {
     const { energy, trader, admin, alice } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const triggerBalance = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
 
     // Get VET balance before swap
@@ -29,9 +30,9 @@ describe('Trader.swap', function () {
     // Approve, config and swap
     const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
     await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
+    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
     await tx3.wait()
 
     // Get VET balance after swap
@@ -43,19 +44,22 @@ describe('Trader.swap', function () {
     // expect(traderBalance).to.equal(...)
   })
 
+  // Test Swap event
+
   it('spends the correct amount of gas', async function () {
     const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const triggerBalance = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
+    console.log({ withdrawAmount: withdrawAmount.toString() })
 
     // Approve, config and swap
     const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
     await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
+    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Make sure gas spent is as expected
@@ -66,24 +70,24 @@ describe('Trader.swap', function () {
     const { energy, trader, owner, alice, bob } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const triggerBalance = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Approve, config and swap
     const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
     await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
+    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
     await tx2.wait()
 
     for (const signer of [owner, alice, bob]) {
-      await expect(trader.connect(signer).swap(alice.address, 0, exchangeRate)).to.be.reverted
+      await expect(trader.connect(signer).swap(alice.address, 0, withdrawAmount, exchangeRate)).to.be.reverted
     }
   })
 
   describe.skip('Fees accrual', function () {
     const _MAX_WITHDRAW_AMOUNT = expandTo18Decimals(1000)
     const reserveBalance = expandTo18Decimals(5)
-    const triggerBalance = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(50)
     const exchangeRate = 100
 
     const testCases: { balance: BigNumber; withdrawAmount: BigNumber }[] = [
@@ -113,9 +117,9 @@ describe('Trader.swap', function () {
       //   withdrawAmount: _MAX_WITHDRAW_AMOUNT.sub(1).sub(reserveBalance),
       // },
       // {
-      //   // 6. balance === triggerBalance => withdrawAmount = balance - reserveBalance
-      //   balance: triggerBalance,
-      //   withdrawAmount: triggerBalance.sub(reserveBalance),
+      //   // 6. balance === withdrawAmount => withdrawAmount = balance - reserveBalance
+      //   balance: withdrawAmount,
+      //   withdrawAmount: withdrawAmount.sub(reserveBalance),
       // },
     ]
 
@@ -141,7 +145,7 @@ describe('Trader.swap', function () {
         const tx1 = await energy.connect(bob).approve(trader.address, constants.MaxUint256)
         await tx1.wait()
         console.log('APPROVE B')
-        const tx2 = await trader.connect(bob).saveConfig(triggerBalance, reserveBalance)
+        const tx2 = await trader.connect(bob).saveConfig(reserveBalance)
         await tx2.wait()
         console.log('CONFIG B')
 
@@ -171,7 +175,7 @@ describe('Trader.swap', function () {
         console.log('BOB EXACT BALANCE')
 
         // Swap
-        const tx3 = await trader.connect(admin).swap(bob.address, 0, exchangeRate)
+        const tx3 = await trader.connect(admin).swap(bob.address, 0, withdrawAmount, exchangeRate)
         const swapReceipt = await tx3.wait()
 
         // Read Swap event
@@ -197,9 +201,9 @@ describe('Trader.swap', function () {
         console.log({ bobBalanceVTHO_1: bobBalanceVTHO_1.toString() })
 
         // if aliceBalanceVTHO >= MAX_WITHDRAW_AMOUNT => withdrawAmount === MAX_WITHDRAW_AMOUNT - reserveBalance
-        // if aliceBalanceVTHO < MAX_WITHDRAW_AMOUNT && aliceBalanceVTHO >= triggerBalance => withdrawAmount === aliceBalance - reserveBalance
+        // if aliceBalanceVTHO < MAX_WITHDRAW_AMOUNT && aliceBalanceVTHO >= withdrawAmount => withdrawAmount === aliceBalance - reserveBalance
 
-        expect(bobBalanceVTHO_1).to.be.gte(triggerBalance)
+        expect(bobBalanceVTHO_1).to.be.gte(withdrawAmount)
         console.log('TRIGGER')
 
         expect(_withdrawAmount).to.equal(withdrawAmount)
@@ -253,7 +257,7 @@ describe('Trader.swap', function () {
 
   // TODO: test fees
 
-  // TODO: swap should fail if attempting a swap with balance < triggerBalance
+  // TODO: swap should fail if attempting a swap with balance < withdrawAmount
 })
 
 // import { ethers } from 'hardhat'
@@ -271,18 +275,18 @@ describe('Trader.swap', function () {
 // } = ethers
 
 // describe('Trader.swap', function () {
-//   it('should swap VTHO for VET when balance is above triggerBalance', async function () {
+//   it('should swap VTHO for VET when balance is above withdrawAmount', async function () {
 //     const { alice, SWAP_GAS, approve, saveConfig, swap } = await fixture()
 
 //     const reserveBalance = parseUnits('5', 18)
-//     const triggerBalance = parseUnits('50', 18)
+//     const withdrawAmount = parseUnits('50', 18)
 //     const exchangeRate = 100
 
 //     // Get VET balance before swap
 //     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
 //     // Approve, config and swap
 //     await approve(alice)
-//     await saveConfig(alice, reserveBalance, triggerBalance)
+//     await saveConfig(alice, reserveBalance, withdrawAmount)
 //     const swapReceipt = await swap(alice.address, exchangeRate)
 //     // Get VET balance after swap
 //     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
@@ -298,7 +302,7 @@ describe('Trader.swap', function () {
 //   //   // TODO: MAX_WITHDRAW_AMOUNT should be fetched from the contract
 //   //   const MAX_WITHDRAW_AMOUNT = parseUnits('1000', 18)
 //   //   const reserveBalance = parseUnits('5', 18)
-//   //   const triggerBalance = parseUnits('50', 18)
+//   //   const withdrawAmount = parseUnits('50', 18)
 //   //   const exchangeRate = 100
 
 //   //   const testCases = [
@@ -310,8 +314,8 @@ describe('Trader.swap', function () {
 //   //     MAX_WITHDRAW_AMOUNT.add(1),
 //   //     // 4. balance = MAX_WITHDRAW_AMOUNT - 1
 //   //     MAX_WITHDRAW_AMOUNT.sub(1),
-//   //     // 5. balance = triggerBalance
-//   //     triggerBalance,
+//   //     // 5. balance = withdrawAmount
+//   //     withdrawAmount,
 //   //   ]
 
 //     // testCases.forEach((balance) => {
@@ -338,12 +342,12 @@ describe('Trader.swap', function () {
 //         expect(traderBalanceVTHO_0).to.equal(0)
 
 //     const reserveBalance = parseUnits('5', 18)
-//     const triggerBalance = parseUnits('50', 18)
+//     const withdrawAmount = parseUnits('50', 18)
 //     const exchangeRate = 100
 
 //         // Approve, save config and swap
 //         await approve(alice)
-//         await saveConfig(alice, triggerBalance, reserveBalance)
+//         await saveConfig(alice, withdrawAmount, reserveBalance)
 //         const swapReceipt = await swap(alice.address, exchangeRate)
 
 //         // Get Swap event
@@ -368,11 +372,11 @@ describe('Trader.swap', function () {
 //         console.log({ aliceBalanceVTHO: aliceBalanceVTHO.toString() })
 
 //         // if aliceBalanceVTHO >= MAX_WITHDRAW_AMOUNT => withdrawAmount === MAX_WITHDRAW_AMOUNT - reserveBalance
-//         // if aliceBalanceVTHO < MAX_WITHDRAW_AMOUNT && aliceBalanceVTHO >= triggerBalance => withdrawAmount === aliceBalance - reserveBalance
+//         // if aliceBalanceVTHO < MAX_WITHDRAW_AMOUNT && aliceBalanceVTHO >= withdrawAmount => withdrawAmount === aliceBalance - reserveBalance
 
 //         const traderBalanceVTHO_1 = await energy.balanceOf(trader.address)
 //         console.log({ contractBalanceVTHO: traderBalanceVTHO_1.toString() })
-//         expect(aliceBalanceVTHO).to.be.gte(triggerBalance)
+//         expect(aliceBalanceVTHO).to.be.gte(withdrawAmount)
 //         console.log('TRIGGER')
 //         // TODO: create 2 different test cases
 //         expect(withdrawAmount).to.equal(
@@ -394,5 +398,5 @@ describe('Trader.swap', function () {
 
 //   // TODO: test fees
 
-//   // TODO: swap should fail if attempting a swap with balance < triggerBalance
+//   // TODO: swap should fail if attempting a swap with balance < withdrawAmount
 // })

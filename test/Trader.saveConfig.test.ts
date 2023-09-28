@@ -6,101 +6,72 @@ import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 chai.use(solidity)
 
 describe('Trader.saveConfig', function () {
-  it('should revert if triggerBalance is zero', async function () {
-    const { trader, alice } = await fixture()
-
-    const triggerBalance = expandTo18Decimals(0)
-    const reserveBalance = expandTo18Decimals(1)
-
-    // TODO: to.be.revertedWith("Trader: invalid triggerBalance") is not passing.
-    await expect(trader.connect(alice).saveConfig(triggerBalance, reserveBalance)).to.be.reverted
-  })
-
   it('should revert if reserveBalance is zero', async function () {
     const { trader, alice } = await fixture()
 
-    const triggerBalance = expandTo18Decimals(1)
     const reserveBalance = expandTo18Decimals(0)
 
     // TODO: to.be.revertedWith("Trader: invalid reserveBalance") is not passing.
-    await expect(trader.connect(alice).saveConfig(triggerBalance, reserveBalance)).to.be.reverted
+    await expect(trader.connect(alice).saveConfig(reserveBalance)).to.be.reverted
   })
 
-  it('should revert if triggerBalance <= reserveBalance', async function () {
+  it('should store the value when reserveBalance is valid', async function () {
     const { trader, alice } = await fixture()
 
-    // triggerBalance === reserveBalance
-    const triggerBalanceEq = expandTo18Decimals(10)
-    const reserveBalanceEq = expandTo18Decimals(10)
-
-    // TODO: to.be.revertedWith("Trader: invalid config") is not passing.
-    await expect(trader.connect(alice).saveConfig(triggerBalanceEq, reserveBalanceEq)).to.be.reverted
-
-    // triggerBalance < reserveBalance
-    const triggerBalanceLt = expandTo18Decimals(10)
-    const reserveBalanceLt = expandTo18Decimals(10).add(1)
-
-    // TODO: to.be.revertedWith("Trader: invalid config") is not passing.
-    await expect(trader.connect(alice).saveConfig(triggerBalanceLt, reserveBalanceLt)).to.be.reverted
-  })
-
-  it('should store config when params are valid', async function () {
-    const { trader, alice } = await fixture()
-
-    const triggerBalance = expandTo18Decimals(100)
     const reserveBalance = expandTo18Decimals(10)
 
-    await expect(trader.connect(alice).saveConfig(triggerBalance, reserveBalance))
-      .to.emit(trader, 'Config')
-      .withArgs(alice.address, triggerBalance, reserveBalance)
+    const tx = await trader.connect(alice).saveConfig(reserveBalance)
+    await tx.wait()
 
-    expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalance, reserveBalance])
+    expect(await trader.reserves(alice.address)).to.equal(reserveBalance)
+  })
+
+  it('should emit a Config event when reserveBalance is valid', async function () {
+    const { trader, alice } = await fixture()
+
+    const reserveBalance = expandTo18Decimals(10)
+
+    await expect(trader.connect(alice).saveConfig(reserveBalance))
+      .to.emit(trader, 'Config')
+      .withArgs(alice.address, reserveBalance)
   })
 
   it("should not be possible to update other account's config", async function () {
     const { trader, alice, bob } = await fixture()
 
-    // Save Alice config
-    const triggerBalanceA = expandTo18Decimals(100)
+    // Save Alice's config
     const reserveBalanceA = expandTo18Decimals(10)
 
-    const txA = await trader.connect(alice).saveConfig(triggerBalanceA, reserveBalanceA)
+    const txA = await trader.connect(alice).saveConfig(reserveBalanceA)
     await txA.wait()
 
-    expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalanceA, reserveBalanceA])
+    expect(await trader.reserves(alice.address)).to.equal(reserveBalanceA)
 
-    // Save Bob config
-    const triggerBalanceB = expandTo18Decimals(50)
+    // Save Bob's config
     const reserveBalanceB = expandTo18Decimals(5)
 
-    const txB = await trader.connect(bob).saveConfig(triggerBalanceB, reserveBalanceB)
+    const txB = await trader.connect(bob).saveConfig(reserveBalanceB)
     await txB.wait()
 
-    expect(await trader.addressToConfig(bob.address)).to.deep.equal([triggerBalanceB, reserveBalanceB])
-
     // Alice config should not have been modified
-    expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalanceA, reserveBalanceA])
+    expect(await trader.reserves(alice.address)).to.equal(reserveBalanceA)
   })
 
   it('should be possible to update config params', async function () {
     const { trader, alice } = await fixture()
 
     // Save Alice config
-    const triggerBalanceA1 = expandTo18Decimals(100)
     const reserveBalanceA1 = expandTo18Decimals(10)
 
-    const txA1 = await trader.connect(alice).saveConfig(triggerBalanceA1, reserveBalanceA1)
+    const txA1 = await trader.connect(alice).saveConfig(reserveBalanceA1)
     await txA1.wait()
 
-    expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalanceA1, reserveBalanceA1])
-
     // Update Alice config
-    const triggerBalanceA2 = expandTo18Decimals(50)
     const reserveBalanceA2 = expandTo18Decimals(5)
 
-    const txA2 = await trader.connect(alice).saveConfig(triggerBalanceA2, reserveBalanceA2)
+    const txA2 = await trader.connect(alice).saveConfig(reserveBalanceA2)
     await txA2.wait()
 
-    expect(await trader.addressToConfig(alice.address)).to.deep.equal([triggerBalanceA2, reserveBalanceA2])
+    expect(await trader.reserves(alice.address)).to.equal(reserveBalanceA2)
   })
 })

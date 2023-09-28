@@ -16,7 +16,7 @@ describe('Trader.withdrawFees', function () {
     const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const triggerBalance = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
 
     // Get accrued fees before the swap.
@@ -27,9 +27,9 @@ describe('Trader.withdrawFees', function () {
     // Approve, config and swap
     const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
     await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
+    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
     await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
+    const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
     const swapReceipt = await tx3.wait()
 
     // Read Swap event
@@ -82,47 +82,7 @@ describe('Trader.withdrawFees', function () {
   // TODO: test fees
 
   it('should revert if not authorized account attempts to withdraw fees', async function () {
-    const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
-
-    const reserveBalance = expandTo18Decimals(5)
-    const triggerBalance = expandTo18Decimals(50)
-    const exchangeRate = 100
-
-    // Get accrued fees before the swap.
-    const traderBalanceVTHO_0 = await energy.balanceOf(trader.address)
-
-    expect(traderBalanceVTHO_0).to.equal(0)
-
-    // Approve, config and swap
-    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
-    await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(triggerBalance, reserveBalance)
-    await tx2.wait()
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, exchangeRate)
-    const swapReceipt = await tx3.wait()
-
-    // Read Swap event
-    const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
-
-    expect(swapEvent).not.to.be.undefined
-    expect(swapEvent?.args).not.to.be.undefined
-    console.log('SWAP EVENT')
-
-    if (swapEvent == null || swapEvent.args == null) return
-
-    const { args: swapArgs } = swapEvent
-
-    const gasPrice = bn(swapArgs[2])
-    const protocolFee = bn(swapArgs[3])
-
-    const txFee = gasPrice.mul(SWAP_GAS)
-    const accruedFees = txFee.add(protocolFee)
-
-    // Get accrued fees after the swap.
-    const traderBalanceVTHO_1 = await energy.balanceOf(trader.address)
-
-    // Make sure both tx fees and protocol fees has been collected
-    expect(traderBalanceVTHO_1).to.equal(accruedFees)
+    const { trader, admin, alice } = await fixture()
 
     for (const signer of [admin, alice]) {
       await expect(trader.connect(signer).withdrawFees()).to.be.reverted
