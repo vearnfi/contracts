@@ -5,6 +5,7 @@ import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 import { saveConfig } from './shared/save-config'
 import { approveEnergy } from './shared/approve-energy'
+import { swap } from './shared/swap'
 
 chai.use(solidity)
 
@@ -27,10 +28,9 @@ describe('Trader.withdrawFees', function () {
     expect(traderBalanceVTHO_0).to.equal(0)
 
     // Approve, config and swap
-    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
     await saveConfig(trader, alice, reserveBalance)
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
-    const swapReceipt = await tx3.wait()
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
 
     // Read Swap event
     const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')

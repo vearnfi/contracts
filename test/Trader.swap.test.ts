@@ -6,6 +6,7 @@ import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 import { saveConfig } from './shared/save-config'
 import { approveEnergy } from './shared/approve-energy'
+import { swap } from './shared/swap'
 
 chai.use(solidity)
 
@@ -29,11 +30,10 @@ describe('Trader.swap', function () {
     // Get VET balance before swap
     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
 
-    // Approve, config and swap
+    // Config, approve and swap
     await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
     await saveConfig(trader, alice, reserveBalance)
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
-    await tx3.wait()
+    await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
 
     // Get VET balance after swap
     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
@@ -52,13 +52,11 @@ describe('Trader.swap', function () {
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
-    console.log({ withdrawAmount: withdrawAmount.toString() })
 
     // Approve, config and swap
     await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
     await saveConfig(trader, alice, reserveBalance)
-    const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
-    const swapReceipt = await tx3.wait()
+    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
 
     // Make sure gas spent is as expected
     expect(swapReceipt.gasUsed).to.equal(SWAP_GAS)
@@ -168,8 +166,7 @@ describe('Trader.swap', function () {
         console.log('BOB EXACT BALANCE')
 
         // Swap
-        const tx3 = await trader.connect(admin).swap(bob.address, 0, withdrawAmount, exchangeRate)
-        const swapReceipt = await tx3.wait()
+        const swapReceipt = await swap(trader, admin, bob.address, 0, withdrawAmount, exchangeRate)
 
         // Read Swap event
         const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
