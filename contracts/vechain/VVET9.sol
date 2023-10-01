@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.0;
 import "./StakingModel.sol";
-import "../../interfaces/IEnergy.sol";
-import "../../interfaces/IVthoClaimable.sol";
+import "../interfaces/IEnergy.sol";
+import "../interfaces/IVthoClaimable.sol";
 
 contract VVET9 is StakingModel, IVthoClaimable {
     string public name = "Veiled VET";

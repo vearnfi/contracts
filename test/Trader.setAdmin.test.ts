@@ -6,7 +6,7 @@ chai.use(solidity)
 
 describe('Trader.setAdmin', function () {
   it('should set a new admin if called by the owner', async function () {
-    const { trader, owner, admin, bob } = await fixture()
+    const { trader, owner, bob } = await fixture()
 
     const tx = await trader.connect(owner).setAdmin(bob.address)
     await tx.wait()

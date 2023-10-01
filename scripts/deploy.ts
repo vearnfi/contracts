@@ -18,10 +18,10 @@ async function main() {
     return
   }
 
-  const { dexs } = networkConfig[(chainId as ChainId)]
+  const { dexs } = networkConfig[chainId as ChainId]
 
   const [deployer] = await hre.ethers.getSigners()
-  console.log({deployer: await deployer.getAddress()})
+  console.log({ deployer: await deployer.getAddress() })
 
   const Trader = await hre.ethers.getContractFactory('Trader')
   const trader = await Trader.connect(deployer).deploy(dexs.map((dex) => dex.routerV2))

@@ -3,6 +3,8 @@ import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
+import { saveConfig } from './shared/save-config'
+import { approveEnergy } from './shared/approve-energy'
 
 chai.use(solidity)
 
@@ -25,10 +27,8 @@ describe('Trader.withdrawFees', function () {
     expect(traderBalanceVTHO_0).to.equal(0)
 
     // Approve, config and swap
-    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
-    await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
-    await tx2.wait()
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    await saveConfig(trader, alice, reserveBalance)
     const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
     const swapReceipt = await tx3.wait()
 

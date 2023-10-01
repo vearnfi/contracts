@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
-import { IEnergy } from "../interfaces/IEnergy.sol";
+import { IEnergy } from "./interfaces/IEnergy.sol";
 
 // TODO: should we include ownable from openzepplin?
 

@@ -6,6 +6,7 @@ import { Energy, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../.
 import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
 import { expandTo18Decimals } from './expand-to-18-decimals'
+import { approveEnergy } from './approve-energy'
 
 chai.use(solidity)
 
@@ -80,8 +81,7 @@ export async function fixture() {
     expect(reserves[1]).to.equal(0)
 
     // Provide liquidity with a 1 VVET9 - 20 VTHO exchange rate
-    const approval = await energy.connect(god).approve(router.address, constants.MaxUint256)
-    await approval.wait()
+    await approveEnergy(energy, god, router.address, constants.MaxUint256)
 
     const token0Amount = expandTo18Decimals(20000) // energy/vtho
     const token1Amount = expandTo18Decimals(1000) // vvet9

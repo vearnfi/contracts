@@ -4,4 +4,3 @@ namespace NodeJS {
     WALLET_MNEMONIC: string
   }
 }
-

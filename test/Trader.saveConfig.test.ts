@@ -2,6 +2,7 @@ import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
+import { saveConfig } from './shared/save-config'
 
 chai.use(solidity)
 
@@ -20,8 +21,7 @@ describe('Trader.saveConfig', function () {
 
     const reserveBalance = expandTo18Decimals(10)
 
-    const tx = await trader.connect(alice).saveConfig(reserveBalance)
-    await tx.wait()
+    await saveConfig(trader, alice, reserveBalance)
 
     expect(await trader.reserves(alice.address)).to.equal(reserveBalance)
   })
@@ -42,16 +42,14 @@ describe('Trader.saveConfig', function () {
     // Save Alice's config
     const reserveBalanceA = expandTo18Decimals(10)
 
-    const txA = await trader.connect(alice).saveConfig(reserveBalanceA)
-    await txA.wait()
+    await saveConfig(trader, alice, reserveBalanceA)
 
     expect(await trader.reserves(alice.address)).to.equal(reserveBalanceA)
 
     // Save Bob's config
     const reserveBalanceB = expandTo18Decimals(5)
 
-    const txB = await trader.connect(bob).saveConfig(reserveBalanceB)
-    await txB.wait()
+    await saveConfig(trader, bob, reserveBalanceB)
 
     // Alice config should not have been modified
     expect(await trader.reserves(alice.address)).to.equal(reserveBalanceA)
@@ -63,14 +61,12 @@ describe('Trader.saveConfig', function () {
     // Save Alice config
     const reserveBalanceA1 = expandTo18Decimals(10)
 
-    const txA1 = await trader.connect(alice).saveConfig(reserveBalanceA1)
-    await txA1.wait()
+    await saveConfig(trader, alice, reserveBalanceA1)
 
     // Update Alice config
     const reserveBalanceA2 = expandTo18Decimals(5)
 
-    const txA2 = await trader.connect(alice).saveConfig(reserveBalanceA2)
-    await txA2.wait()
+    await saveConfig(trader, alice, reserveBalanceA2)
 
     expect(await trader.reserves(alice.address)).to.equal(reserveBalanceA2)
   })

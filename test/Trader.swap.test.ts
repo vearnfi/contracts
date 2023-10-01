@@ -4,6 +4,8 @@ import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
+import { saveConfig } from './shared/save-config'
+import { approveEnergy } from './shared/approve-energy'
 
 chai.use(solidity)
 
@@ -28,10 +30,8 @@ describe('Trader.swap', function () {
     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
 
     // Approve, config and swap
-    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
-    await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
-    await tx2.wait()
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    await saveConfig(trader, alice, reserveBalance)
     const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
     await tx3.wait()
 
@@ -55,10 +55,8 @@ describe('Trader.swap', function () {
     console.log({ withdrawAmount: withdrawAmount.toString() })
 
     // Approve, config and swap
-    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
-    await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
-    await tx2.wait()
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    await saveConfig(trader, alice, reserveBalance)
     const tx3 = await trader.connect(admin).swap(alice.address, 0, withdrawAmount, exchangeRate)
     const swapReceipt = await tx3.wait()
 
@@ -74,10 +72,8 @@ describe('Trader.swap', function () {
     const exchangeRate = 100
 
     // Approve, config and swap
-    const tx1 = await energy.connect(alice).approve(trader.address, constants.MaxUint256)
-    await tx1.wait()
-    const tx2 = await trader.connect(alice).saveConfig(reserveBalance)
-    await tx2.wait()
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    await saveConfig(trader, alice, reserveBalance)
 
     for (const signer of [owner, alice, bob]) {
       await expect(trader.connect(signer).swap(alice.address, 0, withdrawAmount, exchangeRate)).to.be.reverted
@@ -142,16 +138,13 @@ describe('Trader.swap', function () {
 
         console.log({ gasPrice: (await provider.getGasPrice()).toString() })
         // Approve and save config
-        const tx1 = await energy.connect(bob).approve(trader.address, constants.MaxUint256)
-        await tx1.wait()
+        await approveEnergy(energy, bob, trader.address, constants.MaxUint256)
         console.log('APPROVE B')
-        const tx2 = await trader.connect(bob).saveConfig(reserveBalance)
-        await tx2.wait()
+        await saveConfig(trader, bob, reserveBalance)
         console.log('CONFIG B')
 
         // Set bob's account to the desired balance
-        const tx_ = await energy.connect(bob).approve(alice.address, constants.MaxUint256)
-        await tx_.wait()
+        await approveEnergy(energy, bob, alice.address, constants.MaxUint256)
         const bobBalanceVTHO_0 = await energy.balanceOf(bob.address)
         console.log({ bobBalanceVTHO_0: bobBalanceVTHO_0.toString() })
 

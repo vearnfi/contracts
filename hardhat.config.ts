@@ -46,7 +46,7 @@ const config: HardhatUserConfig = {
     artifacts: './artifacts',
   },
   networks: {
-    'vechain_solo': {
+    vechain_solo: {
       url: VECHAIN_URL_SOLO,
       accounts: {
         mnemonic: 'denial kitchen pet squirrel other broom bar gas better priority spoil cross',
@@ -55,7 +55,7 @@ const config: HardhatUserConfig = {
       // restful: true,
       gas: 10000000,
     },
-    'vechain_testnet': {
+    vechain_testnet: {
       url: 'https://testnet.veblocks.net',
       chainId: 100010,
       // @ts-ignore
@@ -67,7 +67,7 @@ const config: HardhatUserConfig = {
       // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
       blockGasLimit: 10000000,
     },
-    'vechain_mainnet': {
+    vechain_mainnet: {
       url: 'https://mainnet.veblocks.net',
       chainId: 100009,
       // @ts-ignore
