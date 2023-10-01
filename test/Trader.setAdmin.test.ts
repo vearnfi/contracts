@@ -1,6 +1,7 @@
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
+import { setAdmin } from './shared/set-admin'
 
 chai.use(solidity)
 
@@ -8,8 +9,7 @@ describe('Trader.setAdmin', function () {
   it('should set a new admin if called by the owner', async function () {
     const { trader, owner, bob } = await fixture()
 
-    const tx = await trader.connect(owner).setAdmin(bob.address)
-    await tx.wait()
+    await setAdmin(trader, owner, bob.address)
 
     expect(await trader.admin()).to.equal(bob.address)
   })
