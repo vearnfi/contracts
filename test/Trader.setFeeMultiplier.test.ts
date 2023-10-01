@@ -1,6 +1,7 @@
 import chai, { expect } from 'chai'
 import { solidity } from 'ethereum-waffle'
 import { fixture } from './shared/fixture'
+import { setFeeMultiplier } from './shared/set-fee-multiplier'
 
 chai.use(solidity)
 
@@ -12,8 +13,7 @@ describe('Trader.setFeeMultiplier', function () {
     const initialFee = await trader.feeMultiplier() // 30
     const newFee = initialFee - 5
 
-    const tx = await trader.connect(owner).setFeeMultiplier(newFee)
-    await tx.wait()
+    await setFeeMultiplier(trader, owner, newFee)
 
     expect(await trader.feeMultiplier()).to.equal(newFee)
   })
@@ -33,8 +33,7 @@ describe('Trader.setFeeMultiplier', function () {
 
     const maxFee = 30
 
-    const tx = await trader.connect(owner).setFeeMultiplier(maxFee)
-    await tx.wait()
+    await setFeeMultiplier(trader, owner, maxFee)
 
     expect(await trader.feeMultiplier()).to.equal(maxFee)
   })
