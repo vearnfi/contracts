@@ -74,7 +74,7 @@ contract Trader {
   /**
    * @dev Gas consumed by the swap function.
    */
-  uint public constant SWAP_GAS = 268677;
+  uint public constant SWAP_GAS = 268883;
   // TODO: SWAP_GAS should be private
 
   /**
@@ -97,7 +97,6 @@ contract Trader {
     address indexed account,
     uint withdrawAmount,
     uint gasPrice,
-    uint gasLeft,
     uint protocolFee,
     uint maxRate,
     uint amountOutMin,
@@ -143,8 +142,6 @@ contract Trader {
    * @dev Giving approval for VTHO spending to a DEX has failed.
    */
   error Trader__ApproveFailed();
-
-  error Trader_TxFee();
 
   /**
    * @dev Prevents calling a function from anyone except the owner.
@@ -264,8 +261,6 @@ contract Trader {
     external
     onlyAdmin
   {
-    uint gasLeft = gasleft();
-
     // Fetch reserveBalance for target account.
     uint reserveBalance = reserves[account];
 
@@ -312,7 +307,7 @@ contract Trader {
       revert Trader__TransferFromFailed(account, withdrawAmount);
     }
 
-    SwapArgs memory args = _calcSwapArgs(gasLeft, withdrawAmount, maxRate);
+    SwapArgs memory args = _calcSwapArgs(withdrawAmount, maxRate);
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
     // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
@@ -366,7 +361,6 @@ contract Trader {
       account,
       withdrawAmount,
       tx.gasprice,
-      gasLeft,
       // TODO: feeMultiplier
       // protocolFee,
       args.protocolFee,
@@ -387,15 +381,13 @@ contract Trader {
   //   return amount * feeMultiplier / 10_000;
   // }
 
-  function _calcSwapArgs(uint gasLeft, uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
+  function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
     // TODO: should we set a gasLimit in price?
     // We are setting a low gas price when submitting the tx.
-    // uint txFee = SWAP_GAS * tx.gasprice;
-    uint txFee = gasLeft * tx.gasprice;
+    uint txFee = SWAP_GAS * tx.gasprice;
+    // TODO: Math.min(SWAP_GAS, gasLeft)?
+    // TODO: should we fetch gasPrice from Params contract?
 
-    if (txFee >= withdrawAmount) {
-    return SwapArgs(txFee, 0, withdrawAmount, withdrawAmount / maxRate);
-    }
     // Calculate protocolFee once txFee has been deduced.
     // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
     uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;

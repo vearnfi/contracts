@@ -24,7 +24,7 @@ describe('Trader.swap', function () {
     const { energy, trader, admin, alice } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
 
     // Get VET balance before swap
@@ -46,16 +46,17 @@ describe('Trader.swap', function () {
     // expect(traderBalance).to.equal(...)
   })
 
-  it.only('should emit a Swap event upon successful exchange', async function () {
+  it('should emit a Swap event upon successful exchange', async function () {
     const { energy, trader, admin, alice } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(5)
+    const withdrawAmount = expandTo18Decimals(500)
+    // ^ baseGasPrice is 2 orders of magnitude higher than on live networks
     const exchangeRate = 100
 
-    // Config, approve and swap
-    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    // Approve, config and swap
     await saveConfig(trader, alice, reserveBalance)
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
     const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
     // ^ TODO: get gasUsed and gasPrice
 
@@ -81,16 +82,16 @@ describe('Trader.swap', function () {
     })
   })
 
-  it('spends the correct amount of gas', async function () {
+  it.only('should spend the correct amount of gas', async function () {
     const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
 
-    // Approve, config and swap
-    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    // Config, approve and swap
     await saveConfig(trader, alice, reserveBalance)
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
     const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
 
     // Make sure gas spent is as expected
@@ -101,12 +102,12 @@ describe('Trader.swap', function () {
     const { energy, trader, owner, alice, bob } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(50)
+    const withdrawAmount = expandTo18Decimals(500)
     const exchangeRate = 100
 
-    // Approve, config and swap
-    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    // Config, approve and swap
     await saveConfig(trader, alice, reserveBalance)
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
 
     for (const signer of [owner, alice, bob]) {
       await expect(trader.connect(signer).swap(alice.address, 0, withdrawAmount, exchangeRate)).to.be.reverted

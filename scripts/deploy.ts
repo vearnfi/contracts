@@ -28,6 +28,7 @@ async function main() {
 
   await trader.deployed()
   console.log(`Trader contract deployed to ${trader.address}`)
+  console.log(JSON.stringify(trader, null, 2))
 
   // TODO: set admin
 }
