@@ -53,7 +53,7 @@ const config: HardhatUserConfig = {
         count: 10,
       },
       // restful: true,
-      gas: 10000000,
+      gas: 10000000, // gasLimit
     },
     vechain_testnet: {
       url: 'https://testnet.veblocks.net',

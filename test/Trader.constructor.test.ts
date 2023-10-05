@@ -13,7 +13,7 @@ describe('Trader.constructor', function () {
     const { energy, routers, owner } = await fixture()
 
     const Trader = await getContractFactory('Trader', owner)
-    const trader = await Trader.deploy(routers.map((router) => router.address))
+    const trader = await Trader.deploy(routers.map((router) => router.address) as [Address, Address])
 
     expect(await trader.vtho()).to.equal(energy.address)
     for (let i = 0; i < SUPPORTED_DEXS_COUNT; i++) {
@@ -29,6 +29,6 @@ describe('Trader.constructor', function () {
 
     const Trader = await getContractFactory('Trader', owner)
 
-    await expect(Trader.deploy(new Array(SUPPORTED_DEXS_COUNT).fill(constants.AddressZero))).to.be.reverted
+    await expect(Trader.deploy(new Array(SUPPORTED_DEXS_COUNT).fill(constants.AddressZero) as [Address, Address])).to.be.reverted
   })
 })

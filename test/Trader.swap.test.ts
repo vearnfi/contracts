@@ -24,7 +24,7 @@ describe('Trader.swap', function () {
     const { energy, trader, admin, alice } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(500)
+    const withdrawAmount = expandTo18Decimals(50)
     const exchangeRate = 100
 
     // Get VET balance before swap
@@ -33,7 +33,9 @@ describe('Trader.swap', function () {
     // Config, approve and swap
     await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
     await saveConfig(trader, alice, reserveBalance)
-    await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
+    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
+    // ^ TODO: get gasUsed and gasPrice
+    console.log({swapReceipt: JSON.stringify(swapReceipt, null, 2)})
 
     // Get VET balance after swap
     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
@@ -44,7 +46,40 @@ describe('Trader.swap', function () {
     // expect(traderBalance).to.equal(...)
   })
 
-  // Test Swap event
+  it.only('should emit a Swap event upon successful exchange', async function () {
+    const { energy, trader, admin, alice } = await fixture()
+
+    const reserveBalance = expandTo18Decimals(5)
+    const withdrawAmount = expandTo18Decimals(5)
+    const exchangeRate = 100
+
+    // Config, approve and swap
+    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
+    await saveConfig(trader, alice, reserveBalance)
+    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
+    // ^ TODO: get gasUsed and gasPrice
+
+    const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
+
+    expect(swapEvent).not.to.be.undefined
+    expect(swapEvent?.args).not.to.be.undefined
+    console.log('SWAP EVENT')
+
+    if (swapEvent == null || swapEvent.args == null) return
+
+    const { args: swapArgs } = swapEvent
+
+    const gasPrice = bn(swapArgs[2])
+    const gasLeft = bn(swapArgs[3])
+    const protocolFee = bn(swapArgs[4])
+
+    console.log({
+      gasPrice: gasPrice.toString(),
+      gasLeft: gasLeft.toString(),
+      protocolFee: protocolFee.toString(),
+      gasUsed: swapReceipt.gasUsed.toString(),
+    })
+  })
 
   it('spends the correct amount of gas', async function () {
     const { energy, trader, admin, alice, SWAP_GAS } = await fixture()

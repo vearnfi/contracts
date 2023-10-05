@@ -34,13 +34,12 @@ contract Trader {
    * @dev Interface to interact with the Energy/VTHO contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
-  // TODO: is it OK to set a contract instance as a constant or immutable
 
   /**
    * @dev Interface to interact with the UniswapV2 router.
    */
   // IUniswapV2Router02 public router;
-  address[] public routers = new address[](2);
+  address[2] public routers; // = new address[](2);
 
   /**
    * @dev Protocol owner.
@@ -98,6 +97,7 @@ contract Trader {
     address indexed account,
     uint withdrawAmount,
     uint gasPrice,
+    uint gasLeft,
     uint protocolFee,
     uint maxRate,
     uint amountOutMin,
@@ -144,6 +144,8 @@ contract Trader {
    */
   error Trader__ApproveFailed();
 
+  error Trader_TxFee();
+
   /**
    * @dev Prevents calling a function from anyone except the owner.
    */
@@ -164,16 +166,19 @@ contract Trader {
    * @dev Initializes the contract by setting the list of available DEXs
    * as well as the contract owner.
    */
-  constructor(address[] memory routers_) {
+  constructor(address[2] memory routers_) {
     // Set deployer as the owner.
     owner = msg.sender;
 
     // Initialize uniV2 routers.
-    for (uint8 i = 0; i < 2; i++) {
-      if (routers_[i] == address(0)) revert Trader__ZeroAddress();
+    // TODO: should we use an internal fn to init the set of routers?
+    // See: https://github.com/PatrickAlphaC/hardhat-nft-fcc/blob/main/contracts/RandomIpfsNft.sol#L93C1-L99C6
+    // for (uint8 i = 0; i < 2; i++) {
+    //   if (routers_[i] == address(0)) revert Trader__ZeroAddress();
 
-      routers[i] = routers_[i];
-    }
+    //   routers[i] = routers_[i];
+    // }
+    routers = routers_;
   }
 
   // If neither a *receive* Ether nor a payable *fallback* function is present,
@@ -259,6 +264,8 @@ contract Trader {
     external
     onlyAdmin
   {
+    uint gasLeft = gasleft();
+
     // Fetch reserveBalance for target account.
     uint reserveBalance = reserves[account];
 
@@ -305,7 +312,7 @@ contract Trader {
       revert Trader__TransferFromFailed(account, withdrawAmount);
     }
 
-    SwapArgs memory args = _calcSwapArgs(withdrawAmount, maxRate);
+    SwapArgs memory args = _calcSwapArgs(gasLeft, withdrawAmount, maxRate);
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
     // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
@@ -359,6 +366,7 @@ contract Trader {
       account,
       withdrawAmount,
       tx.gasprice,
+      gasLeft,
       // TODO: feeMultiplier
       // protocolFee,
       args.protocolFee,
@@ -379,11 +387,15 @@ contract Trader {
   //   return amount * feeMultiplier / 10_000;
   // }
 
-  function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
+  function _calcSwapArgs(uint gasLeft, uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
     // TODO: should we set a gasLimit in price?
     // We are setting a low gas price when submitting the tx.
-    uint txFee = SWAP_GAS * tx.gasprice;
+    // uint txFee = SWAP_GAS * tx.gasprice;
+    uint txFee = gasLeft * tx.gasprice;
 
+    if (txFee >= withdrawAmount) {
+    return SwapArgs(txFee, 0, withdrawAmount, withdrawAmount / maxRate);
+    }
     // Calculate protocolFee once txFee has been deduced.
     // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
     uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;

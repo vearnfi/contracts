@@ -24,10 +24,12 @@ async function main() {
   console.log({ deployer: await deployer.getAddress() })
 
   const Trader = await hre.ethers.getContractFactory('Trader')
-  const trader = await Trader.connect(deployer).deploy(dexs.map((dex) => dex.routerV2))
+  const trader = await Trader.connect(deployer).deploy(dexs.map((dex) => dex.routerV2) as [Address, Address])
 
   await trader.deployed()
   console.log(`Trader contract deployed to ${trader.address}`)
+
+  // TODO: set admin
 }
 
 // We recommend this pattern to be able to use async/await everywhere

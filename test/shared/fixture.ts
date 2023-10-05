@@ -32,7 +32,7 @@ export async function fixture() {
   expect(await provider.getCode(vvet9.address)).not.to.have.length(0)
 
   const factories: UniswapV2Factory[] = []
-  const routers: UniswapV2Router02[] = []
+  const routers: UniswapV2Router02[] = [] // TODO: typescript enforce length = 2
 
   for (let i = 0; i < SUPPORTED_DEXS_COUNT; i++) {
     const Factory = await getContractFactory('UniswapV2Factory', god)
@@ -50,7 +50,7 @@ export async function fixture() {
   }
 
   const Trader = await getContractFactory('Trader', owner)
-  const trader = await Trader.deploy(routers.map((router) => router.address))
+  const trader = await Trader.deploy(routers.map((router) => router.address) as [Address, Address])
 
   expect(await provider.getCode(trader.address)).not.to.have.length(0)
 
