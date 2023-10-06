@@ -257,6 +257,9 @@ contract Trader {
     uint8 routerIndex,
     uint withdrawAmount,
     uint maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
+    // ^ TODO: maxRate should have a 3 decimal precision. For instance, a maxRate of 13580
+    // it's actually representing a 13,580 exchangeRate. We need to divide by 1000 after
+    // multiplying by the exchange rate.
   )
     external
     onlyAdmin
