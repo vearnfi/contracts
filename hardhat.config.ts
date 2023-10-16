@@ -1,12 +1,14 @@
 import * as dotenv from 'dotenv'
 dotenv.config()
 import type { HardhatUserConfig } from 'hardhat/config'
+import { VECHAIN_URL_SOLO } from '@vechain/hardhat-vechain'
 import '@nomicfoundation/hardhat-toolbox'
 import '@nomiclabs/hardhat-truffle5'
 import '@vechain/hardhat-vechain'
 import '@vechain/hardhat-ethers'
 import 'solidity-coverage'
 import '@typechain/hardhat'
+// import 'hardhat-gas-reporter'
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -44,20 +46,32 @@ const config: HardhatUserConfig = {
     artifacts: './artifacts',
   },
   networks: {
-    'vechain-local': {
-      url: 'http://127.0.0.1:8669',
+    vechain_solo: {
+      url: VECHAIN_URL_SOLO,
       accounts: {
         mnemonic: 'denial kitchen pet squirrel other broom bar gas better priority spoil cross',
         count: 10,
       },
       // restful: true,
-      gas: 10000000,
+      gas: 10000000, // gasLimit
     },
-    'vechain-testnet': {
+    vechain_testnet: {
       url: 'https://testnet.veblocks.net',
       chainId: 100010,
       // @ts-ignore
-      privateKey: process.env.WALLET_PRIVATE_KEY,
+      // privateKey: process.env.WALLET_PRIVATE_KEY,
+      accounts: {
+        mnemonic: process.env.WALLET_MNEMONIC,
+        count: 1,
+      },
+      // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
+      blockGasLimit: 10000000,
+    },
+    vechain_mainnet: {
+      url: 'https://mainnet.veblocks.net',
+      chainId: 100009,
+      // @ts-ignore
+      // privateKey: process.env.WALLET_PRIVATE_KEY,
       // delegateUrl: "https://sponsor-testnet.vechain.energy/by/#",
       blockGasLimit: 10000000,
     },

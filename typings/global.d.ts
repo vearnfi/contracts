@@ -1,5 +1,5 @@
-namespace NodeJS {
-  interface ProcessEnv {
-    VEROCKET_UNI_ROUTER_ADDRESS: string
-  }
+declare global {
+  type Address = `0x${string}`
 }
+
+export {}

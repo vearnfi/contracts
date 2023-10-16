@@ -1,12 +1,15 @@
 {
   "name": "vefarm-contracts",
   "scripts": {
-    "test": "npx hardhat test --network vechain-local",
+    "test": "npx hardhat test --network vechain_solo",
+    "gas": "REPORT_GAS=true npx hardhat test --network vechain_solo",
     "build": "hardhat compile",
     "format": "prettier --write .",
-    "coverage": "npx hardhat coverage --testfiles 'test/*.ts' --network vechain-local",
+    "coverage": "npx hardhat coverage --testfiles 'test/*.ts' --network vechain_solo",
     "typechain": "npx hardhat typechain",
-    "solhint": "npx solhint 'contracts/Trader.sol'"
+    "solhint": "npx solhint 'contracts/Trader.sol'",
+    "deploy:testnet": "npx hardhat run scripts/deploy.ts --network vechain_testnet",
+    "deploy:mainnet": "npx hardhat run scripts/deploy.ts --network vechain_mainnet"
   },
   "keywords": [],
   "author": "",
