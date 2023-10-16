@@ -27,10 +27,12 @@ async function main() {
   const trader = await Trader.connect(deployer).deploy(dexs.map((dex) => dex.routerV2) as [Address, Address])
 
   await trader.deployed()
-  console.log(`Trader contract deployed to ${trader.address}`)
-  console.log(JSON.stringify(trader, null, 2))
+  console.log(`Trader contract deployed to ...`)
+  console.log(JSON.stringify(trader.deployTransaction, null, 2))
 
   // TODO: set admin
+  // const tx = await trader.setAdmin(deployer.address);
+  // tx.wait();
 }
 
 // We recommend this pattern to be able to use async/await everywhere

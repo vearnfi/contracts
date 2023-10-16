@@ -20,7 +20,7 @@ describe('Trader.withdrawFees', function () {
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100
+    const exchangeRate = 100_000
 
     // Get accrued fees before the swap.
     const traderBalanceVTHO_0 = await energy.balanceOf(trader.address)

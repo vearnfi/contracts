@@ -241,7 +241,7 @@ contract Trader {
    * and return the resulting tokens back to the original account.
    * @param account Account owning the VTHO tokens.
    * _param withdrawAmount Amount of VTHO to be withdrawn from the account and swapped for VET.
-   * @param maxRate Maximum accepted exchange rate. For example `maxRate = 20` implies
+   * @param maxRate Maximum accepted exchange rate. For example `maxRate = 20_000` (3 decimal precision) implies
    * `you get 1 VET for every 20 VTHO you deposit`. The higher the maxRate the lower the output amount in VET.
    * @dev Trader contract must be given approval for VTHO token spending in behalf of the
    * target account priot to calling this function.
@@ -384,12 +384,15 @@ contract Trader {
   //   return amount * feeMultiplier / 10_000;
   // }
 
+  // TODO: try moving txFee outside this function and define
+  // withdrawAmountWithFee = withdrawAmount - txFee
   function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
     // TODO: should we set a gasLimit in price?
     // We are setting a low gas price when submitting the tx.
     uint txFee = SWAP_GAS * tx.gasprice;
     // TODO: Math.min(SWAP_GAS, gasLeft)?
-    // TODO: should we fetch gasPrice from Params contract?
+    // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
+    // manipulated
 
     // Calculate protocolFee once txFee has been deduced.
     // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
@@ -399,7 +402,7 @@ contract Trader {
     uint amountIn = withdrawAmount - txFee - protocolFee;
 
     // Calculate the minimum expected output (VET).
-    uint amountOutMin = amountIn / maxRate;
+    uint amountOutMin = amountIn * 1000 / maxRate;
 
     return SwapArgs(txFee, protocolFee, amountIn, amountOutMin);
   }

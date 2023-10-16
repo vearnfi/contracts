@@ -25,7 +25,7 @@ describe('Trader.swap', function () {
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100
+    const exchangeRate = 100_000
 
     // Get VET balance before swap
     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
@@ -52,7 +52,7 @@ describe('Trader.swap', function () {
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
     // ^ baseGasPrice is 2 orders of magnitude higher than on live networks
-    const exchangeRate = 100
+    const exchangeRate = 100_000
 
     // Approve, config and swap
     await saveConfig(trader, alice, reserveBalance)
@@ -82,12 +82,12 @@ describe('Trader.swap', function () {
     })
   })
 
-  it.only('should spend the correct amount of gas', async function () {
+  it('should spend the correct amount of gas', async function () {
     const { energy, trader, admin, alice, SWAP_GAS } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100
+    const exchangeRate = 100_000
 
     // Config, approve and swap
     await saveConfig(trader, alice, reserveBalance)
@@ -103,7 +103,7 @@ describe('Trader.swap', function () {
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100
+    const exchangeRate = 100_000
 
     // Config, approve and swap
     await saveConfig(trader, alice, reserveBalance)
@@ -118,7 +118,7 @@ describe('Trader.swap', function () {
     const _MAX_WITHDRAW_AMOUNT = expandTo18Decimals(1000)
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(50)
-    const exchangeRate = 100
+    const exchangeRate = 100_000
 
     const testCases: { balance: BigNumber; withdrawAmount: BigNumber }[] = [
       {
