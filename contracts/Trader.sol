@@ -19,24 +19,24 @@ contract Trader {
   //   uint reserveBalance;
   // }
 
-  struct SwapArgs {
-    uint txFee;
-    uint protocolFee;
-    uint amountIn;
-    uint amountOutMin;
-  }
+  // struct SwapArgs {
+  //   uint txFee;
+  //   uint protocolFee;
+  //   uint amountIn;
+  //   uint amountOutMin;
+  // }
   // struct Fees {
   //   uint txFee;
   //   uint protocolFee;
   // }
 
   /**
-   * @dev Interface to interact with the Energy/VTHO contract.
+   * @dev Interface to interact with the Energy (VTHO) contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
 
   /**
-   * @dev Interface to interact with the UniswapV2 router.
+   * @dev Interface to interact with the UniswapV2 routers.
    */
   // IUniswapV2Router02 public router;
   address[2] public routers; // = new address[](2);
@@ -47,7 +47,6 @@ contract Trader {
    * The owner is the only role with access to the setFeeMultiplier, setAdmin and withdrawFees functions.
    */
   address public immutable owner;
-  // TODO: this should be private
 
   /**
    * @dev Protocol admin.
@@ -55,14 +54,14 @@ contract Trader {
    * The admin is the only role with access to swap function.
    */
   address public admin;
-  // TODO: this should be private
 
   /**
    * @dev Multiplier used to calculate protocol fee based on the following formula:
    *
    * uint protocolFee = amount * feeMultiplier / 10_000.
    *
-   * For instance, if feeMultiplier equals 30, it means we are applying a 0.3 % fee.
+   * For instance, if feeMultiplier equals 30, it means we are applying a 0.3 % fee
+   * to the amount being swapped.
    */
   uint8 public feeMultiplier = 30;
 
@@ -78,7 +77,7 @@ contract Trader {
   // TODO: SWAP_GAS should be private
 
   /**
-   * @dev Dictionary matching address accounts to reserveBalance.
+   * @dev Dictionary matching account address to reserveBalance.
    */
   mapping(address => uint) public reserves;
 
@@ -253,7 +252,7 @@ contract Trader {
   /// TODO: secure this function onlyOwner or onlyOwnerOrAdmin
   // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
 	function swap(
-    address payable account,
+    address payable account, // TODO: rename to owner
     uint8 routerIndex,
     uint withdrawAmount,
     uint maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
@@ -264,21 +263,22 @@ contract Trader {
     external
     onlyAdmin
   {
-    // Fetch reserveBalance for target account.
-    uint reserveBalance = reserves[account];
+    _validateWithdrawAmount(account, withdrawAmount);
+    // // Fetch reserveBalance for target account.
+    // uint reserveBalance = reserves[account];
 
-    // Make sure reserveBalance has been initialized.
-		if (reserveBalance == 0) revert Trader__InvalidReserve();
+    // // Make sure reserveBalance has been initialized.
+		// if (reserveBalance == 0) revert Trader__InvalidReserve();
 
-    // Fetch target account balance (VTHO).
-    uint balance = vtho.balanceOf(account);
+    // // Fetch target account balance (VTHO).
+    // uint balance = vtho.balanceOf(account);
 
-    // Make sure reserveBalance is kept in the account.
-    if (balance < withdrawAmount + reserveBalance) {
-      revert Trader__InsufficientBalance(balance, withdrawAmount, reserveBalance);
-    }
+    // // Make sure reserveBalance is satisfied.
+    // if (balance < withdrawAmount + reserveBalance) {
+    //   revert Trader__InsufficientBalance(balance, withdrawAmount, reserveBalance);
+    // }
 
-    // TODO: triggerBalance - reserveBalance should be big enough to make the tx worth it
+    // TODO: withdrawAmount should be big enough to make the tx worth it
 
 
     // TODO: balance / vthoReserves < 0.01 (1%) // By enforing this, am I enforcing slippage < some value?
@@ -310,7 +310,23 @@ contract Trader {
       revert Trader__TransferFromFailed(account, withdrawAmount);
     }
 
-    SwapArgs memory args = _calcSwapArgs(withdrawAmount, maxRate);
+    // TODO: should we set a gasLimit in price?
+    // We are setting a low gas price when submitting the tx.
+    uint txFee = SWAP_GAS * tx.gasprice;
+    // TODO: Math.min(SWAP_GAS, gasLeft)?
+    // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
+    // manipulated
+
+    // Calculate protocolFee once txFee has been deduced.
+    // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
+    uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+
+    // Substract all fees from the initial withdraw amount. The remainder is sent to the DEX.
+    uint amountIn = withdrawAmount - txFee - protocolFee;
+
+    // Calculate the minimum expected output (VET).
+    uint amountOutMin = amountIn * 1000 / maxRate;
+    // SwapArgs memory args = _calcSwapArgs(withdrawAmount, maxRate);
     // TODO: substract fee and transaction cost
     // TODO: This could potentially throw if tx fee > withdrawAmount
     // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
@@ -333,8 +349,8 @@ contract Trader {
     IUniswapV2Router02 router = IUniswapV2Router02(routers[routerIndex]);
 
     // Approve the router to spend VTHO.
-    // if (!vtho.approve(address(router), amountIn)) revert Trader__ApproveFailed();
-    if (!vtho.approve(address(router), args.amountIn)) revert Trader__ApproveFailed();
+    if (!vtho.approve(address(router), amountIn)) revert Trader__ApproveFailed();
+    // if (!vtho.approve(address(router), args.amountIn)) revert Trader__ApproveFailed();
 
     // TODO: check for the best exchange rate on chain instead of passing an exchange parameter?
     // uint[] memory amounts = router.getAmountsOut(amountIn, path);
@@ -343,20 +359,20 @@ contract Trader {
     address[] memory path = new address[](2);
     path[0] = address(vtho);
     path[1] = router.WETH();
+    // uint[] memory amounts = router.swapExactTokensForETH(
+    //   args.amountIn,
+    //   args.amountOutMin,
+    //   path,
+    //   account,
+    //   block.timestamp // TODO: What about deadline?
+    // );
     uint[] memory amounts = router.swapExactTokensForETH(
-      args.amountIn,
-      args.amountOutMin,
+      amountIn,
+      amountOutMin,
       path,
       account,
       block.timestamp // TODO: What about deadline?
     );
-    // uint[] memory amounts = router.swapExactTokensForETH(
-    //   amountIn,
-    //   amountOutMin,
-    //   path,
-    //   account,
-    //   block.timestamp // What about deadline?
-    // );
 
     // TODO: should we assert previousVETBalance > newVETBalance?
 
@@ -365,16 +381,32 @@ contract Trader {
       withdrawAmount,
       tx.gasprice,
       // TODO: feeMultiplier
-      // protocolFee,
-      args.protocolFee,
+      protocolFee,
+      // args.protocolFee,
       // fees.protocolFee,
       maxRate,
       // TODO: add amountIn
-      // amountOutMin,
-      args.amountOutMin,
+      amountOutMin,
+      // args.amountOutMin,
       amounts[amounts.length - 1]
     );
 	}
+
+  function _validateWithdrawAmount(address account, uint withdrawAmount) internal view {
+    // Fetch reserveBalance for target account.
+    uint reserveBalance = reserves[account];
+
+    // Make sure reserveBalance has been initialized.
+		if (reserveBalance == 0) revert Trader__InvalidReserve(); // TODO: either throw or return a code
+
+    // Fetch target account balance (VTHO).
+    uint balance = vtho.balanceOf(account);
+
+    // Make sure reserveBalance is satisfied.
+    if (balance < withdrawAmount + reserveBalance) {
+      revert Trader__InsufficientBalance(balance, withdrawAmount, reserveBalance);
+    }
+  }
 
   // function _calcTxFee() internal view returns (uint) {
   //   return SWAP_GAS * tx.gasprice;
@@ -386,24 +418,24 @@ contract Trader {
 
   // TODO: try moving txFee outside this function and define
   // withdrawAmountWithFee = withdrawAmount - txFee
-  function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
-    // TODO: should we set a gasLimit in price?
-    // We are setting a low gas price when submitting the tx.
-    uint txFee = SWAP_GAS * tx.gasprice;
-    // TODO: Math.min(SWAP_GAS, gasLeft)?
-    // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
-    // manipulated
+  // function _calcSwapArgs(uint withdrawAmount, uint maxRate) internal view returns (SwapArgs memory) {
+  //   // TODO: should we set a gasLimit in price?
+  //   // We are setting a low gas price when submitting the tx.
+  //   uint txFee = SWAP_GAS * tx.gasprice;
+  //   // TODO: Math.min(SWAP_GAS, gasLeft)?
+  //   // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
+  //   // manipulated
 
-    // Calculate protocolFee once txFee has been deduced.
-    // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
-    uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+  //   // Calculate protocolFee once txFee has been deduced.
+  //   // uint protocolFee = _calcProtocolFee(withdrawAmount - txFee);
+  //   uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
 
-    // Substract fees and exchange the remaining VHTO amount for VET tokens.
-    uint amountIn = withdrawAmount - txFee - protocolFee;
+  //   // Substract fees and exchange the remaining VHTO amount for VET tokens.
+  //   uint amountIn = withdrawAmount - txFee - protocolFee;
 
-    // Calculate the minimum expected output (VET).
-    uint amountOutMin = amountIn * 1000 / maxRate;
+  //   // Calculate the minimum expected output (VET).
+  //   uint amountOutMin = amountIn * 1000 / maxRate;
 
-    return SwapArgs(txFee, protocolFee, amountIn, amountOutMin);
-  }
+  //   return SwapArgs(txFee, protocolFee, amountIn, amountOutMin);
+  // }
 }

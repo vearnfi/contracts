@@ -147,7 +147,7 @@ See: [https://docs.vechain.org/vechain-and-hardhat/hardhat-sample-project-ethers
 See: [https://docs.vechain.org/openzeppelin-compatibility/how-to-recreate/setup-a-thor-solo-node](https://docs.vechain.org/openzeppelin-compatibility/how-to-recreate/setup-a-thor-solo-node)
 
 ```
-npx hardhat test --network vechain
+npm test
 ```
 
 # How the project was setup
