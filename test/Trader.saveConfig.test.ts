@@ -1,10 +1,7 @@
-import chai, { expect } from 'chai'
-import { solidity } from 'ethereum-waffle'
+import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 import { saveConfig } from './shared/save-config'
-
-chai.use(solidity)
 
 describe('Trader.saveConfig', function () {
   it('should revert if reserveBalance is zero', async function () {
@@ -12,8 +9,7 @@ describe('Trader.saveConfig', function () {
 
     const reserveBalance = expandTo18Decimals(0)
 
-    // TODO: to.be.revertedWith("Trader: invalid reserveBalance") is not passing.
-    await expect(trader.connect(alice).saveConfig(reserveBalance)).to.be.reverted
+    await expect(trader.connect(alice).saveConfig(reserveBalance)).to.be.rejectedWith("execution reverted")
   })
 
   it('should store the value when reserveBalance is valid', async function () {

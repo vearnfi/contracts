@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.19;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
@@ -69,11 +69,15 @@ contract Trader {
    * @dev Maximum VTHO amount that can be withdrawn in one trade.
    */
   uint public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
+  // TODO: can we replace this by fetching the selected
+  // dex's reserves and requiring the amountIn to be less
+  // than a percentage of the reserves and the resulting slippage
+  // lower than certain value?
 
   /**
    * @dev Gas consumed by the swap function.
    */
-  uint public constant SWAP_GAS = 268883;
+  uint public constant SWAP_GAS = 265652;
   // TODO: SWAP_GAS should be private
 
   /**

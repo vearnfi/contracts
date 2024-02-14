@@ -1,20 +1,18 @@
 import * as dotenv from 'dotenv'
 dotenv.config()
 import type { HardhatUserConfig } from 'hardhat/config'
-import { VECHAIN_URL_SOLO } from '@vechain/hardhat-vechain'
-import '@nomicfoundation/hardhat-toolbox'
-import '@nomiclabs/hardhat-truffle5'
-import '@vechain/hardhat-vechain'
-import '@vechain/hardhat-ethers'
-import 'solidity-coverage'
-import '@typechain/hardhat'
-// import 'hardhat-gas-reporter'
+import "@nomicfoundation/hardhat-toolbox";
+import "@vechain/hardhat-vechain";
+import '@vechain/hardhat-ethers';
+import {
+  VECHAIN_URL_SOLO
+} from "@vechain/hardhat-vechain";
 
 const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: '0.8.4',
+        version: '0.8.19',
       },
       {
         version: '0.8.0',
