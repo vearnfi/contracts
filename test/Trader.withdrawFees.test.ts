@@ -1,16 +1,8 @@
-import { ethers } from 'hardhat'
-import type { Signer } from 'ethers'
 import { expect } from 'chai'
-import type { Energy, Trader } from '../typechain-types'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
-import { saveConfig } from './shared/save-config'
-import { approveEnergy } from './shared/approve-energy'
-import { swap } from './shared/swap'
 
-const { MaxUint256 } = ethers
-
-describe.only('Trader.withdrawFees', function () {
+describe('Trader.withdrawFees', function () {
   it('should be possible for the owner to withdraw accrued fees', async function () {
     // Arrange
     const { energy, trader, traderAddr, owner, alice } = await fixture()
