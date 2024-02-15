@@ -53,7 +53,7 @@ npm test
 
 - [https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/trading-from-a-smart-contract](https://docs.uniswap.org/contracts/v2/guides/smart-contract-integration/trading-from-a-smart-contract)
 
-# Debug
+## Debug
 
 - Set breakpoint
 - (VSCode) Open Javascript Debug Terminal
