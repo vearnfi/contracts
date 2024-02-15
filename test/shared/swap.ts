@@ -7,8 +7,8 @@ export async function swap(
   targetAddress: string | Address,
   routerIndex: number,
   withdrawAmount: bigint,
-  exchangeRate: number,
+  maxRate: number
 ): Promise<ContractTransactionReceipt | null> {
-  const tx = await trader.connect(signer).swap(targetAddress, routerIndex, withdrawAmount, exchangeRate)
+  const tx = await trader.connect(signer).swap(targetAddress, routerIndex, withdrawAmount, maxRate)
   return tx.wait(1)
 }

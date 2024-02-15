@@ -12,25 +12,6 @@ import { IEnergy } from "./interfaces/IEnergy.sol";
  */
 contract Trader {
   /**
-   * @dev Account configuration that needs to be met in order to trigger a swap for the said account.
-   */
-  // struct SwapConfig {
-  //   uint triggerBalance;
-  //   uint reserveBalance;
-  // }
-
-  // struct SwapArgs {
-  //   uint txFee;
-  //   uint protocolFee;
-  //   uint amountIn;
-  //   uint amountOutMin;
-  // }
-  // struct Fees {
-  //   uint txFee;
-  //   uint protocolFee;
-  // }
-
-  /**
    * @dev Interface to interact with the Energy (VTHO) contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
@@ -77,6 +58,10 @@ contract Trader {
   /**
    * @dev Gas consumed by the swap function.
    */
+  // Fee Calculation: In blockchain networks, transaction fees are
+  // generally calculated based on the size of the transaction (in bytes),
+  // the type of transaction, the network congestion and the priority of
+  // the transaction.
   uint public constant SWAP_GAS = 265652;
   // TODO: SWAP_GAS should be private
 
@@ -184,10 +169,9 @@ contract Trader {
   // If neither a *receive* Ether nor a payable *fallback* function is present,
   // the contract cannot receive Ether through regular transactions and throws
   // an exception.
-  // TODO: test sending VET or VTHO directly to the contract should revert given
+  // TODO: test sending VET directly to the contract should revert given
   // the fact that we didn't specify a fallback fn
 
-  // TODO: rename to saveReserve? same for the Config event?
   /**
    * @dev Associate reserveBalance to the caller.
    *
@@ -255,6 +239,7 @@ contract Trader {
   /// TODO: add exchangeId to select exchange to be used
   /// TODO: secure this function onlyOwner or onlyOwnerOrAdmin
   // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
+  // TODO: what happens if an attacker sets maxRate is >> 0? The contract should revert
 	function swap(
     address payable account, // TODO: rename to owner
     uint8 routerIndex,

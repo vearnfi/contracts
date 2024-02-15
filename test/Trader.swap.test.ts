@@ -5,130 +5,123 @@ import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 import { saveConfig } from './shared/save-config'
 import { approveEnergy } from './shared/approve-energy'
 import { swap } from './shared/swap'
+import { calcVthoGrowth } from './shared/calc-vtho-growth'
 
 const { provider, MaxUint256 } = ethers
 
-// TODO: see chai matches `to.changeTokenBalances` and `to.changeEtherBalance`
+type SwapTestCase = {
+  reserveBalance: bigint
+  withdrawAmount: bigint
+}
+
+const testCases: SwapTestCase[] = [
+  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(500) },
+  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(999) },
+  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(1_000) },
+  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(9_999) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(10_000) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(20_000) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(50_000) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(99_999) },
+]
+
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
 // TODO: test small withdrawAmount
 describe('Trader.swap', function () {
   it('should exchange VTHO for VET when the method is called by the admin', async function () {
+    // Arrange
     const { energy, trader, traderAddr, admin, alice } = await fixture()
 
+    const routerIndex = 0
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100_000
+    const maxRate = 100_000
 
-    // Config and approve
     await approveEnergy(energy, alice, traderAddr, MaxUint256)
     await saveConfig(trader, alice, reserveBalance)
-
-    // Get balance before swap
+    // Calculate balance before the swap
     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
     const aliceBalanceVTHO_0 = await energy.balanceOf(alice.address)
 
-    // Swap
-    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
-    // ^ TODO: get gasUsed and gasPrice
-    console.log({ swapReceipt: JSON.stringify(swapReceipt, null, 2) })
+    // Act
+    await swap(trader, admin, alice.address, routerIndex, withdrawAmount, maxRate)
 
-    // TODO: use calcTxFee?
-
-    // Get VET balance after swap
-    const aliceBalanceVET_1 = await provider.getBalance(alice.address)
-    // const al
-
+    // Assert
+    const vthoGrowth = calcVthoGrowth(aliceBalanceVET_0, 2)
+    const aliceBalanceVTHO_1 = await energy.balanceOf(alice.address)
+    expect(aliceBalanceVTHO_1).to.equal(aliceBalanceVTHO_0 + vthoGrowth - withdrawAmount)
     // Make sure VET balance has increased
+    const aliceBalanceVET_1 = await provider.getBalance(alice.address)
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
-    // expect(aliceBalanceVTHO_1)
-    // TODO: Calculate exact VET fees
-    // expect(traderBalance).to.equal(...)
   })
+
+  xit('should revert if maxRate is too high', async () => {})
 
   xit('should increase the account balance by the right amount of VET', async () => {})
 
   xit('should decrease the account balance the right amount of VTHO', async () => {})
 
   it('should emit a Swap event upon successful exchange', async function () {
-    const { energy, trader, traderAddr, admin, alice } = await fixture()
+    // Arrange
+    const { energy, trader, traderAddr, baseGasPrice, admin, alice, SWAP_GAS } = await fixture()
 
+    const routerIndex = 0
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    // ^ baseGasPrice is 2 orders of magnitude higher than on live networks
-    const exchangeRate = 100_000
+    // ^ baseGasPrice is 1e^15 2 orders of magnitude higher than on live networks
+    const maxRate = 100_000
 
-    // Approve, config and swap
     await saveConfig(trader, alice, reserveBalance)
     await approveEnergy(energy, alice, traderAddr, MaxUint256)
-    await expect(swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)).to.emit(trader, 'Swap')
-    // .withArgs(alice.address, withdrawAmount);
+
+    const feeMultiplier = await trader.feeMultiplier()
+
+    // Act + assert
+    await expect(swap(trader, admin, alice.address, routerIndex, withdrawAmount, maxRate))
+      .to.emit(trader, 'Swap')
+      .withArgs(
+        alice.address,
+        withdrawAmount,
+        baseGasPrice,
+        ((withdrawAmount - baseGasPrice * SWAP_GAS) * feeMultiplier) / BigInt(10_000), // protocolFee
+        maxRate,
+        BigInt('2336449560000000000'),
+        BigInt('11513105600880675221')
+      )
   })
 
-  // it('should emit a Swap event upon successful exchange', async function () {
-  //   const { energy, trader, traderAddr,admin, alice } = await fixture()
+  testCases.forEach(({ reserveBalance, withdrawAmount }) => {
+    it.only('should spend the correct amount of gas', async function () {
+      // Arrange
+      const { energy, trader, traderAddr, admin, alice, SWAP_GAS } = await fixture()
 
-  //   const reserveBalance = expandTo18Decimals(5)
-  //   const withdrawAmount = expandTo18Decimals(500)
-  //   // ^ baseGasPrice is 2 orders of magnitude higher than on live networks
-  //   const exchangeRate = 100_000
+      const maxRate = 100_000
 
-  //   // Approve, config and swap
-  //   await saveConfig(trader, alice, reserveBalance)
-  //   await approveEnergy(energy, alice, traderAddr, MaxUint256)
-  //   const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
-  //   // ^ TODO: get gasUsed and gasPrice
+      await saveConfig(trader, alice, reserveBalance)
+      await approveEnergy(energy, alice, traderAddr, MaxUint256)
 
-  //   const swapEvent = swapReceipt?.events?.find((event) => event.event === 'Swap')
+      // Act
+      const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, maxRate)
 
-  //   expect(swapEvent).not.to.be.undefined
-  //   expect(swapEvent?.args).not.to.be.undefined
-  //   console.log('SWAP EVENT')
-
-  //   if (swapEvent == null || swapEvent.args == null) return
-
-  //   const { args: swapArgs } = swapEvent
-
-  //   const gasPrice = bn(swapArgs[2])
-  //   const gasLeft = bn(swapArgs[3])
-  //   const protocolFee = bn(swapArgs[4])
-
-  //   console.log({
-  //     gasPrice: gasPrice.toString(),
-  //     gasLeft: gasLeft.toString(),
-  //     protocolFee: protocolFee.toString(),
-  //     gasUsed: swapReceipt.gasUsed.toString(),
-  //   })
-  // })
-
-  it('should spend the correct amount of gas', async function () {
-    const { energy, trader, traderAddr, admin, alice, SWAP_GAS } = await fixture()
-
-    const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100_000
-
-    // Config, approve and swap
-    await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
-    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
-
-    // Make sure gas spent is as expected
-    expect(swapReceipt?.gasUsed).to.equal(SWAP_GAS)
+      // Assert
+      expect(swapReceipt?.gasUsed).to.equal(SWAP_GAS)
+    })
   })
 
   it('should revert if called by any account other than the admin', async function () {
+    // Arrange
     const { energy, trader, traderAddr, owner, alice, bob } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100_000
+    const maxRate = 100_000
 
-    // Config, approve and swap
     await saveConfig(trader, alice, reserveBalance)
     await approveEnergy(energy, alice, traderAddr, MaxUint256)
 
+    // Act + assert
     for (const signer of [owner, alice, bob]) {
-      await expect(trader.connect(signer).swap(alice.address, 0, withdrawAmount, exchangeRate)).to.be.rejectedWith(
+      await expect(trader.connect(signer).swap(alice.address, 0, withdrawAmount, maxRate)).to.be.rejectedWith(
         'execution reverted'
       )
     }
@@ -138,7 +131,7 @@ describe('Trader.swap', function () {
     const _MAX_WITHDRAW_AMOUNT = expandTo18Decimals(1000)
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(50)
-    const exchangeRate = 100_000
+    const maxRate = 100_000
 
     const testCases: { balance: bigint; withdrawAmount: bigint }[] = [
       {
@@ -222,7 +215,7 @@ describe('Trader.swap', function () {
     //     console.log('BOB EXACT BALANCE')
 
     //     // Swap
-    //     const swapReceipt = await swap(trader, admin, bob.address, 0, withdrawAmount, exchangeRate)
+    //     const swapReceipt = await swap(trader, admin, bob.address, 0, withdrawAmount, maxRate)
 
     //     // Read Swap event
     //     const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
@@ -284,7 +277,7 @@ describe('Trader.swap', function () {
     //   // Approve, config and swap
     //   await saveConfig(trader, alice, reserveBalance)
     //   await approveEnergy(energy, alice, traderAddr, MaxUint256)
-    //   const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
+    //   const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, maxRate)
 
     //   // Read Swap event
     //   const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
@@ -394,14 +387,14 @@ describe('Trader.swap', function () {
 
 //     const reserveBalance = parseUnits('5', 18)
 //     const withdrawAmount = parseUnits('50', 18)
-//     const exchangeRate = 100
+//     const maxRate = 100
 
 //     // Get VET balance before swap
 //     const aliceBalanceVET_0 = await provider.getBalance(alice.address)
 //     // Approve, config and swap
 //     await approve(alice)
 //     await saveConfig(alice, reserveBalance, withdrawAmount)
-//     const swapReceipt = await swap(alice.address, exchangeRate)
+//     const swapReceipt = await swap(alice.address, maxRate)
 //     // Get VET balance after swap
 //     const aliceBalanceVET_1 = await provider.getBalance(alice.address)
 
@@ -417,7 +410,7 @@ describe('Trader.swap', function () {
 //   //   const MAX_WITHDRAW_AMOUNT = parseUnits('1000', 18)
 //   //   const reserveBalance = parseUnits('5', 18)
 //   //   const withdrawAmount = parseUnits('50', 18)
-//   //   const exchangeRate = 100
+//   //   const maxRate = 100
 
 //   //   const testCases = [
 //   //     // 1. balance >= MAX_WITHDRAW_AMOUNT + reserveBalance
@@ -457,12 +450,12 @@ describe('Trader.swap', function () {
 
 //     const reserveBalance = parseUnits('5', 18)
 //     const withdrawAmount = parseUnits('50', 18)
-//     const exchangeRate = 100
+//     const maxRate = 100
 
 //         // Approve, save config and swap
 //         await approve(alice)
 //         await saveConfig(alice, withdrawAmount, reserveBalance)
-//         const swapReceipt = await swap(alice.address, exchangeRate)
+//         const swapReceipt = await swap(alice.address, maxRate)
 
 //         // Get Swap event
 //         const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')

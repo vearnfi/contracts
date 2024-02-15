@@ -1,33 +1,40 @@
-import { ethers } from 'hardhat'
+import { ethers, network } from 'hardhat'
 import type { AddressLike } from 'ethers'
-import chai, { expect } from 'chai'
-// import { solidity } from 'ethereum-waffle'
-import { ENERGY_CONTRACT_ADDRESS, SUPPORTED_DEXS_COUNT } from '../../constants'
-import { Energy, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../typechain-types'
-import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
+import { expect } from 'chai'
+import {
+  ENERGY_CONTRACT_ADDRESS,
+  PARAMS_CONTRACT_ADDRESS,
+  EXECUTOR_CONTRACT_ADDRESS,
+  BASE_GAS_PRICE,
+  SUPPORTED_DEXS_COUNT,
+} from '../../constants'
+import { Energy, Params, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../typechain-types'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
+import * as paramsArtifact from '../../artifacts/contracts/vechain/Params.sol/Params.json'
+import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import { expandTo18Decimals } from './expand-to-18-decimals'
 import { approveEnergy } from './approve-energy'
 
-// chai.use(solidity)
-
-const {
-  getSigners,
-  getContractFactory,
-  // hexlify,
-  Contract,
-  ZeroAddress,
-  MaxUint256,
-  provider,
-} = ethers
+const { getSigner, getSigners, getContractFactory, Contract, ZeroAddress, MaxUint256, provider } = ethers
 
 export async function fixture() {
+  // NOTE: these account run out of gas the more we run tests! Fix!
   const [god, owner, admin, alice, bob] = await getSigners()
 
   const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god) as unknown as Energy
   const energyAddr = await energy.getAddress()
 
   expect(await provider.getCode(energyAddr)).not.to.have.length(0)
+
+  const params = new Contract(PARAMS_CONTRACT_ADDRESS, paramsArtifact.abi, god) as unknown as Params
+  const paramsAddr = await params.getAddress()
+
+  expect(await provider.getCode(paramsAddr)).not.to.have.length(0)
+
+  const baseGasPriceKey = '0x000000000000000000000000000000000000626173652d6761732d7072696365'
+  // ^ https://github.com/vechain/thor/blob/f77ab7f286d3b53da1b48c025afc633a7bd03561/thor/params.go#L44
+  const baseGasPrice = await params.get(baseGasPriceKey)
+  // ^ baseGasPrice is 1e^15, 2 orders of magnitude higher than on live networks
 
   const VVET9 = await getContractFactory('VVET9', god)
   const vvet9 = await VVET9.deploy()
@@ -140,6 +147,7 @@ export async function fixture() {
     energyAddr,
     vvet9,
     vvet9Addr,
+    baseGasPrice,
     factories,
     routers,
     routersAddr,
