@@ -1,13 +1,8 @@
-import hre from 'hardhat'
-import { networkConfig } from '../helper-hardhat-config'
-import type { ChainId } from '../helper-hardhat-config'
+import { network, ethers } from 'hardhat'
+import { getChainData } from '@vearnfi/config'
+import type { ChainId } from '@vearnfi/config'
 
-const {
-  network: {
-    name,
-    config: { chainId },
-  },
-} = hre
+const { name, config: { chainId } } = network
 
 async function main() {
   console.log('Deploying contract...')
@@ -18,17 +13,17 @@ async function main() {
     return
   }
 
-  const { dexs } = networkConfig[chainId as ChainId]
+  const { dexs } = getChainData(chainId as ChainId)
 
-  const [deployer] = await hre.ethers.getSigners()
+  const [deployer] = await ethers.getSigners()
   console.log({ deployer: await deployer.getAddress() })
 
-  const Trader = await hre.ethers.getContractFactory('Trader')
+  const Trader = await ethers.getContractFactory('Trader')
   const trader = await Trader.connect(deployer).deploy(dexs.map((dex) => dex.routerV2) as [Address, Address])
 
-  await trader.deployed()
+  await trader.waitForDeployment()
   console.log(`Trader contract deployed to ...`)
-  console.log(JSON.stringify(trader.deployTransaction, null, 2))
+  console.log(JSON.stringify(trader.deploymentTransaction(), null, 2))
 
   // TODO: set admin
   // const tx = await trader.setAdmin(deployer.address);
@@ -41,3 +36,31 @@ main().catch((error) => {
   console.error(error)
   process.exitCode = 1
 })
+
+// import { ethers } from "hardhat";
+
+// async function main() {
+//   const currentTimestampInSeconds = Math.round(Date.now() / 1000);
+//   const unlockTime = currentTimestampInSeconds + 60;
+
+//   const lockedAmount = ethers.parseEther("0.001");
+
+//   const lock = await ethers.deployContract("Lock", [unlockTime], {
+//     value: lockedAmount,
+//   });
+
+//   await lock.waitForDeployment();
+
+//   console.log(
+//     `Lock with ${ethers.formatEther(
+//       lockedAmount
+//     )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
+//   );
+// }
+
+// // We recommend this pattern to be able to use async/await everywhere
+// // and properly handle errors.
+// main().catch((error) => {
+//   console.error(error);
+//   process.exitCode = 1;
+// });

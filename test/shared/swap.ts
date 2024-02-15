@@ -1,4 +1,4 @@
-import type { BigNumber, Signer, ContractReceipt } from 'ethers'
+import type { Signer, ContractTransactionReceipt } from 'ethers'
 import { Trader } from '../../typechain-types'
 
 export async function swap(
@@ -6,9 +6,9 @@ export async function swap(
   signer: Signer,
   targetAddress: string | Address,
   routerIndex: number,
-  withdrawAmount: BigNumber,
-  exchangeRate: number,
-): Promise<ContractReceipt> {
-  const tx = await trader.connect(signer).swap(targetAddress, routerIndex, withdrawAmount, exchangeRate)
+  withdrawAmount: bigint,
+  maxRate: number
+): Promise<ContractTransactionReceipt | null> {
+  const tx = await trader.connect(signer).swap(targetAddress, routerIndex, withdrawAmount, maxRate)
   return tx.wait(1)
 }

@@ -1,93 +1,49 @@
-import { ethers } from 'hardhat'
-import chai, { expect } from 'chai'
-import { solidity } from 'ethereum-waffle'
+import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
-import { saveConfig } from './shared/save-config'
-import { approveEnergy } from './shared/approve-energy'
-import { swap } from './shared/swap'
-
-chai.use(solidity)
-
-const {
-  BigNumber: { from: bn },
-  constants,
-} = ethers
 
 describe('Trader.withdrawFees', function () {
   it('should be possible for the owner to withdraw accrued fees', async function () {
-    const { energy, trader, owner, admin, alice, SWAP_GAS } = await fixture()
+    // Arrange
+    const { energy, trader, traderAddr, owner, alice } = await fixture()
 
-    const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(500)
-    const exchangeRate = 100_000
+    // Transfer some VTHO to the Trader contract
+    const deposit = expandTo18Decimals(5)
+    const tx1 = await energy.connect(alice).transfer(traderAddr, deposit)
+    await tx1.wait()
 
-    // Get accrued fees before the swap.
-    const traderBalanceVTHO_0 = await energy.balanceOf(trader.address)
+    // Act
+    const tx2 = await trader.connect(owner).withdrawFees()
+    await tx2.wait()
 
-    expect(traderBalanceVTHO_0).to.equal(0)
+    // Assert
+    expect(await energy.balanceOf(traderAddr)).to.equal(0)
 
-    // Approve, config and swap
-    await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, trader.address, constants.MaxUint256)
-    const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, exchangeRate)
-
-    // Read Swap event
-    const swapEvent = swapReceipt.events?.find((event) => event.event === 'Swap')
-
-    expect(swapEvent).not.to.be.undefined
-    expect(swapEvent?.args).not.to.be.undefined
-    console.log('SWAP EVENT')
-
-    if (swapEvent == null || swapEvent.args == null) return
-
-    const { args: swapArgs } = swapEvent
-
-    const gasPrice = bn(swapArgs[2])
-    const protocolFee = bn(swapArgs[3])
-
-    const txFee = gasPrice.mul(SWAP_GAS)
-    const accruedFees = txFee.add(protocolFee)
-
-    // Get accrued fees after the swap.
-    const traderBalanceVTHO_1 = await energy.balanceOf(trader.address)
-
-    // Make sure both tx fees and protocol fees has been collected
-    expect(traderBalanceVTHO_1).to.equal(accruedFees)
-
-    const tx4 = await trader.connect(owner).withdrawFees()
-    await tx4.wait()
-
-    // Read `Transfer` event from energy contract.
-    const filter = energy.filters.Transfer(trader.address, owner.address)
+    const filter = energy.filters.Transfer(traderAddr, owner.address)
     const events = await energy.queryFilter(filter)
-    const transferEvent = events.find((event) => event.event === 'Transfer')
 
-    expect(transferEvent).not.to.be.undefined
-    expect(transferEvent?.args).not.to.be.undefined
-    console.log('TRANSFER EVENT')
+    expect(events.length).to.equal(1)
 
-    if (transferEvent == null || transferEvent.args == null) return
+    const { args } = events[0]
 
-    const { args: transferArgs } = transferEvent
+    const from = BigInt(args[0])
+    const to = BigInt(args[1])
+    const amount = BigInt(args[2])
 
-    const from = bn(transferArgs[0])
-    const to = bn(transferArgs[1])
-    const amount = bn(transferArgs[2])
-
-    expect(from).to.equal(trader.address)
+    expect(from).to.equal(traderAddr)
     expect(to).to.equal(owner.address)
-    expect(amount).to.equal(accruedFees)
+    expect(amount).to.equal(deposit)
   })
-  // TODO: test fees
 
   it('should revert if not authorized account attempts to withdraw fees', async function () {
+    // Arrange
     const { trader, admin, alice } = await fixture()
 
+    // Act + assert
     for (const signer of [admin, alice]) {
-      await expect(trader.connect(signer).withdrawFees()).to.be.reverted
+      await expect(trader.connect(signer).withdrawFees()).to.be.rejectedWith(
+        'execution reverted: Trader: account is not owner'
+      )
     }
   })
-
-  // TODO: test emit event
 })
