@@ -20,7 +20,9 @@ describe('Trader.setAdmin', function () {
 
     // Act + assert
     for (const signer of [alice, admin]) {
-      await expect(trader.connect(signer).setAdmin(bob.address)).to.be.rejectedWith('execution reverted')
+      await expect(trader.connect(signer).setAdmin(bob.address)).to.be.rejectedWith(
+        'execution reverted: Trader: account is not owner'
+      )
     }
   })
 })

@@ -41,7 +41,9 @@ describe('Trader.withdrawFees', function () {
 
     // Act + assert
     for (const signer of [admin, alice]) {
-      await expect(trader.connect(signer).withdrawFees()).to.be.rejectedWith('execution reverted')
+      await expect(trader.connect(signer).withdrawFees()).to.be.rejectedWith(
+        'execution reverted: Trader: account is not owner'
+      )
     }
   })
 })

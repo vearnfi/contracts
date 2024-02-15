@@ -10,7 +10,9 @@ describe('Trader.saveConfig', function () {
 
     // Act + assert
     const reserveBalance = expandTo18Decimals(0)
-    await expect(trader.connect(alice).saveConfig(reserveBalance)).to.be.rejectedWith('execution reverted')
+    await expect(trader.connect(alice).saveConfig(reserveBalance)).to.be.rejectedWith(
+      'execution reverted: Trader: invalid reserve'
+    )
   })
 
   it('should store the value when reserveBalance is valid', async function () {
@@ -74,6 +76,8 @@ describe('Trader.saveConfig', function () {
 
     // Act + assert
     const reserveBalanceA2 = expandTo18Decimals(0)
-    await expect(saveConfig(trader, alice, reserveBalanceA2)).to.be.rejectedWith('execution reverted')
+    await expect(saveConfig(trader, alice, reserveBalanceA2)).to.be.rejectedWith(
+      'execution reverted: Trader: invalid reserve'
+    )
   })
 })

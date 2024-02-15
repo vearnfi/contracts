@@ -55,6 +55,26 @@ describe('Trader.swap', function () {
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
   })
 
+  it('should revert if account does not approve energy', async function () {
+    // Arrange
+    const { energy, trader, traderAddr, admin, alice } = await fixture()
+
+    const routerIndex = 0
+    const reserveBalance = expandTo18Decimals(5)
+    const withdrawAmount = expandTo18Decimals(500)
+    const maxRate = 100_000
+
+    // Do NOT approve energy
+    await saveConfig(trader, alice, reserveBalance)
+
+    // Act + assert
+    await expect(swap(trader, admin, alice.address, routerIndex, withdrawAmount, maxRate)).to.be.rejectedWith(
+      'execution reverted: builtin: insufficient allowance'
+    )
+  })
+
+  // TODO: what about gasCoef? Try swapping using diff gas coef
+
   xit('should revert if maxRate is too high', async () => {})
 
   xit('should increase the account balance by the right amount of VET', async () => {})
@@ -91,7 +111,7 @@ describe('Trader.swap', function () {
   })
 
   testCases.forEach(({ reserveBalance, withdrawAmount }) => {
-    it.only('should spend the correct amount of gas', async function () {
+    it('should spend the correct amount of gas', async function () {
       // Arrange
       const { energy, trader, traderAddr, admin, alice, SWAP_GAS } = await fixture()
 
@@ -122,7 +142,7 @@ describe('Trader.swap', function () {
     // Act + assert
     for (const signer of [owner, alice, bob]) {
       await expect(trader.connect(signer).swap(alice.address, 0, withdrawAmount, maxRate)).to.be.rejectedWith(
-        'execution reverted'
+        'execution reverted: Trader: account is not admin'
       )
     }
   })

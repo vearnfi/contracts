@@ -34,7 +34,9 @@ describe('Trader.setFeeMultiplier', function () {
     // Act + assert
     const newFee = BigInt(25)
     for (const signer of [alice, admin]) {
-      await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.rejectedWith('execution reverted')
+      await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.rejectedWith(
+        'execution reverted: Trader: account is not owner'
+      )
     }
   })
 
@@ -68,6 +70,8 @@ describe('Trader.setFeeMultiplier', function () {
 
     // Act + assert
     const newFee = BigInt(31)
-    await expect(trader.connect(owner).setFeeMultiplier(newFee)).to.be.rejectedWith('execution reverted')
+    await expect(trader.connect(owner).setFeeMultiplier(newFee)).to.be.rejectedWith(
+      'execution reverted: Trader: invalid fee multiplier'
+    )
   })
 })
