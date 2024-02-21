@@ -300,7 +300,7 @@ contract Trader {
     uint reserveBalance = reserves[account];
 
     // Make sure reserveBalance has been initialized.
-		require(reserveBalance > 0, "Trader: invalid reserve");
+    require(reserveBalance > 0, "Trader: invalid reserve");
 
     // Fetch target account balance (VTHO).
     uint balance = vtho.balanceOf(account);

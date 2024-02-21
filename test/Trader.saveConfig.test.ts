@@ -38,7 +38,7 @@ describe('Trader.saveConfig', function () {
       .withArgs(alice.address, reserveBalance)
   })
 
-  it('it supports config of multiple accounts', async function () {
+  it('supports config of multiple accounts', async function () {
     // Arrange
     const { trader, alice, bob } = await fixture()
 
