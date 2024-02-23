@@ -15,6 +15,7 @@ contract Trader {
    * @dev Interface to interact with the Energy (VTHO) contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
+  // ? Would it be cheaper to store only the address and create a local reference inside each function?
 
   /**
    * @dev Interface to interact with the UniswapV2 routers.
@@ -39,7 +40,7 @@ contract Trader {
   /**
    * @dev Multiplier used to calculate protocol fee based on the following formula:
    *
-   * uint protocolFee = amount * feeMultiplier / 10_000.
+   * uint256 protocolFee = amount * feeMultiplier / 10_000.
    *
    * For instance, if feeMultiplier equals 30, it means we are applying a 0.3 % fee
    * to the amount being swapped.
@@ -49,33 +50,29 @@ contract Trader {
   /**
    * @dev Maximum VTHO amount that can be withdrawn in one trade.
    */
-  uint public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
+  uint256 public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
   // TODO: can we replace this by fetching the selected
   // dex's reserves and requiring the amountIn to be less
   // than a percentage of the reserves and the resulting slippage
   // lower than certain value?
 
   /**
-   * @dev Gas consumed by the swap function.
+   * @dev Estimated gas cost for running the swap function with an upper bound of 10_000
+   * as the withdrawAmount input.
    */
-  // Fee Calculation: In blockchain networks, transaction fees are
-  // generally calculated based on the size of the transaction (in bytes),
-  // the type of transaction, the network congestion and the priority of
-  // the transaction.
-  uint public constant SWAP_GAS = 265652;
-  // TODO: SWAP_GAS should be private
+  uint256 public constant SWAP_GAS = 265_652;
 
   /**
    * @dev Dictionary matching account address to reserveBalance.
    */
-  mapping(address => uint) public reserves;
+  mapping(address => uint256) public reserves;
 
   /**
    * @dev Account has set a new swap configuration.
    */
   event Config(
     address indexed account,
-    uint reserveBalance
+    uint256 reserveBalance
   );
 
   /**
@@ -83,12 +80,12 @@ contract Trader {
    */
   event Swap(
     address indexed account,
-    uint withdrawAmount,
-    uint gasPrice,
-    uint protocolFee,
-    uint maxRate,
-    uint amountOutMin,
-    uint amountOut
+    uint256 withdrawAmount,
+    uint256 gasPrice,
+    uint256 protocolFee,
+    uint256 maxRate,
+    uint256 amountOutMin,
+    uint256 amountOut
   );
 
   /**
@@ -138,7 +135,7 @@ contract Trader {
    * Enforce reserveBalance to be non zero so that when the `swap`
    * method gets called we can verify that the config has been initilized.
    */
-  function saveConfig(uint reserveBalance) external {
+  function saveConfig(uint256 reserveBalance) external {
     require(reserveBalance > 0, "Trader: invalid reserve");
 
     reserves[msg.sender] = reserveBalance;
@@ -193,7 +190,7 @@ contract Trader {
    * @dev Trader contract must be given approval for VTHO token spending in behalf of the
    * target account priot to calling this function.
    */
-    // uint[] memory amounts = router.getAmountsOut(amountIn, path);
+    // uint256[] memory amounts = router.getAmountsOut(amountIn, path);
   /// OBS: we cannot pass amountOutputMin because we don't know the the gas price before hand (?)
   /// TODO: see https://solidity-by-example.org/defi/uniswap-v2/ for naming conventions
   /// TODO: check this out https://medium.com/buildbear/uniswap-testing-1d88ca523bf0
@@ -202,10 +199,11 @@ contract Trader {
   // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
   // TODO: what happens if an attacker sets maxRate is >> 0? The contract should revert
 	function swap(
-    address payable account, // TODO: rename to owner
+    address payable account,
     uint8 routerIndex,
-    uint withdrawAmount,
-    uint maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
+    uint256 withdrawAmount,
+    // TODO: pass gasEstimate instead of SWAP_GAS. gasEstimate is an UB of tx gas cost
+    uint256 maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
     // ^ TODO: maxRate should have a 3 decimal precision. For instance, a maxRate of 13580
     // it's actually representing a 13,580 exchangeRate. We need to divide by 1000 after
     // multiplying by the exchange rate.
@@ -213,6 +211,8 @@ contract Trader {
     external
     onlyAdmin
   {
+    uint256 startGas = gasleft();
+
     _validateWithdrawAmount(account, withdrawAmount);
     // TODO: withdrawAmount should be big enough to make the tx worth it
 
@@ -231,7 +231,7 @@ contract Trader {
     // TODO: can we simplify this using Math.min(balance - config.reserveBalance, MAX_WITHDRAW_AMOUNT)
     // Then, is we remove triggerBalance, we can remove the balance variable and use vtho.balanceOf(account)
     // directly inside the Math.min(...)
-    // uint withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
+    // uint256 withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
     //   ? MAX_WITHDRAW_AMOUNT
     //   : balance - config.reserveBalance;
     // TODO: once exchangeId is set, test routerAddress != address(0)
@@ -246,21 +246,22 @@ contract Trader {
     // TODO: should we set a gasLimit in price?
     // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
     // We are setting a low gas price when submitting the tx.
-    uint txFee = SWAP_GAS * tx.gasprice;
-    // TODO: Math.min(SWAP_GAS, gasLeft)?
+    // Over estimate the tx cost. At the end we refund the user with unused gas.
+    // TODO: we should be able to update SWAP_GAS
+    uint256 txFee = SWAP_GAS * tx.gasprice;
     // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
     // manipulated
 
     // Calculate protocolFee once txFee has been deduced.
-    uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+    uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
 
     // Substract fee and tx cost from the initial withdraw amount.
     // The remainder is sent to the DEX.
-    uint amountIn = withdrawAmount - txFee - protocolFee;
+    uint256 amountIn = withdrawAmount - txFee - protocolFee;
     // TODO: This could potentially throw if tx fee > withdrawAmount
 
     // Calculate the minimum expected output (VET).
-    uint amountOutMin = amountIn * 1000 / maxRate;
+    uint256 amountOutMin = amountIn * 1000 / maxRate;
 
     // Initialize router for the chosen DEX.
     IUniswapV2Router02 router = IUniswapV2Router02(routers[routerIndex]);
@@ -272,7 +273,7 @@ contract Trader {
     address[] memory path = new address[](2);
     path[0] = address(vtho);
     path[1] = router.WETH();
-    uint[] memory amounts = router.swapExactTokensForETH(
+    uint256[] memory amounts = router.swapExactTokensForETH(
       amountIn,
       amountOutMin,
       path,
@@ -281,6 +282,22 @@ contract Trader {
     );
 
     // TODO: should we assert previousVETBalance > newVETBalance?
+
+    // We want to charge users exactly for how much gas was required for the tx.
+    // The gasAfterRefundCalculation is meant to cover these additional operations where we
+    // refund the user for any non used gas charged upfront.
+    uint256 refund = _calculateRefundAmount(
+      startGas,
+      SWAP_GAS,
+      41_300, // transfer to a non zero balance account TODO: plus if (refund > 0) statement + gas for calling the _calculateRefundAmount
+      tx.gasprice
+    );
+
+    // Refund target account
+    // TODO: find an upper limit for the operations below
+    if (refund > 0) {
+      require(vtho.transfer(account, refund), "Trader: refund failed");
+    }
 
 		emit Swap(
       account,
@@ -292,20 +309,32 @@ contract Trader {
       // TODO: add amountIn
       amountOutMin,
       amounts[amounts.length - 1]
-    );
+      // TODO: include refund
+    ); // 2_300 gas at the time of writting
 	}
 
-  function _validateWithdrawAmount(address account, uint withdrawAmount) internal view {
+  function _validateWithdrawAmount(address account, uint256 withdrawAmount) internal view {
     // Fetch reserveBalance for target account.
-    uint reserveBalance = reserves[account];
+    uint256 reserveBalance = reserves[account];
 
     // Make sure reserveBalance has been initialized.
     require(reserveBalance > 0, "Trader: invalid reserve");
 
     // Fetch target account balance (VTHO).
-    uint balance = vtho.balanceOf(account);
+    uint256 balance = vtho.balanceOf(account);
 
     // Make sure reserveBalance is satisfied.
     require(balance >= withdrawAmount + reserveBalance, "Trader: insufficient balance");
+  }
+
+    // Get the amount of gas used for fulfillment
+  function _calculateRefundAmount(
+    uint256 startGas,
+    uint256 gasEstimate,
+    uint256 gasAfterRefundCalculation,
+    uint256 gasPrice
+  ) internal view returns (uint256) {
+    // gasEstimate - gasUsed - gasAfterRefundCalculation
+    return (gasEstimate - startGas + gasleft() - gasAfterRefundCalculation) * gasPrice;
   }
 }
