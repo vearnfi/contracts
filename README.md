@@ -34,6 +34,13 @@ docker-compose up -d
 npm test
 ```
 
+## Deployment
+
+```
+npm run deploy:testnet
+npm run deploy:mainnet
+```
+
 ## Challenges
 
 1. How can we compute the transaction cost associated with the swap function within itself, in order to deduce this amount from the target account?

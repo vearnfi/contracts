@@ -7,6 +7,9 @@ import { IParams } from "./interfaces/IParams.sol";
 
 // TODO: should we include ownable from openzepplin?
 
+// Notice: Custom errors seems not supported on VeChain. As a result, the `revertReason` field
+// remains empty when such errors occur.
+
 /**
  * @title Automatic VTHO to VET swaps.
  * @author Feder
@@ -25,8 +28,7 @@ contract Trader {
   /**
    * @dev Interface to interact with the UniswapV2 routers.
    */
-  // IUniswapV2Router02 public router;
-  address[2] public routers; // = new address[](2);
+  address[2] public routers;
 
   /**
    * @dev Protocol owner.
@@ -68,8 +70,8 @@ contract Trader {
   // lower than certain value?
 
   /**
-   * @dev Estimated gas cost for running the swap function with an
-   * upper bound of 0xfffffffffffffffffff for the withdrawAmount input.
+   * @dev Estimated gas cost for executing the swap function with an upper bound
+   * of 0xfffffffffffffffffff for the withdrawAmount parameter.
    */
   uint256 public constant SWAP_GAS = 266_321;
 
@@ -128,11 +130,9 @@ contract Trader {
     fetchBaseGasPrice();
   }
 
-  // If neither a *receive* Ether nor a payable *fallback* function is present,
-  // the contract cannot receive Ether through regular transactions and throws
-  // an exception.
-  // TODO: test sending VET directly to the contract should revert given
-  // the fact that we didn't specify a fallback fn
+  // Given the fact that nor a *receive* Ether nor a payable *fallback* function
+  // is present, this contract cannot receive ETH through regular transactions and
+  // throws an exception.
 
   /**
    * @dev Fetch and store base gas price from VeChain Params contract.
