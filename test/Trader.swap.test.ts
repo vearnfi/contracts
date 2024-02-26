@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat'
+import type { TransactionRequest } from 'ethers'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
@@ -15,14 +16,12 @@ type SwapTestCase = {
 }
 
 const testCases: SwapTestCase[] = [
-  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(500) },
-  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(999) },
-  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(1_000) },
-  // { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(9_999) },
-  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(10_000) },
-  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(20_000) },
-  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(50_000) },
-  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(99_999) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(500) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(1_000) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(5_000) },
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: expandTo18Decimals(10_000) }, // 0x21E19E0C9BAB2400000
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: BigInt('5037190915060954894609') }, // 0x1111111111111111111
+  { reserveBalance: expandTo18Decimals(5), withdrawAmount: BigInt('75557863725914323419135') }, // 0xfffffffffffffffffff
 ]
 
 // TODO: what happens if the account is actually a contract? Anything that might go wrong?
@@ -55,9 +54,31 @@ describe('Trader.swap', function () {
     expect(aliceBalanceVET_1).to.be.gt(aliceBalanceVET_0)
   })
 
+  // For some reason gasPrice cannot be overwritten when calling a method
+  // with a positive number of arguments:
+  // contract.foo(arg1, arg2, {gasPrice})
+  it.skip('should revert if tx gas price exceeds twice the base gas price', async function () {
+    // Arrange
+    const { baseGasPrice, trader, admin, alice } = await fixture()
+
+    const routerIndex = 0
+    // const reserveBalance = expandTo18Decimals(5)
+    const withdrawAmount = expandTo18Decimals(500)
+    const maxRate = 100_000
+    const gasPrice = BigInt(2) * baseGasPrice + BigInt(1)
+
+    // await approveEnergy(energy, alice, traderAddr, MaxUint256)
+    // await saveConfig(trader, alice, reserveBalance)
+
+    // Act + assert
+    await expect(
+      trader.connect(admin).swap(alice.address, routerIndex, withdrawAmount, maxRate, { gasPrice })
+    ).to.be.rejectedWith('execution reverted: Trader: gas price too high')
+  })
+
   it('should revert if account does not approve energy', async function () {
     // Arrange
-    const { energy, trader, traderAddr, admin, alice } = await fixture()
+    const { trader, admin, alice } = await fixture()
 
     const routerIndex = 0
     const reserveBalance = expandTo18Decimals(5)
@@ -89,6 +110,8 @@ describe('Trader.swap', function () {
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
     // ^ baseGasPrice is 1e^15 2 orders of magnitude higher than on live networks
+    // therefore we need to increase the min withdrawAmount for the txFee to be
+    // less or equal the withdrawAmount
     const maxRate = 100_000
 
     await saveConfig(trader, alice, reserveBalance)
@@ -105,26 +128,27 @@ describe('Trader.swap', function () {
         baseGasPrice,
         ((withdrawAmount - baseGasPrice * SWAP_GAS) * feeMultiplier) / BigInt(10_000), // protocolFee
         maxRate,
-        BigInt('2336449560000000000'),
+        BigInt('2334535320000000000'),
         BigInt('11513105600880675221')
       )
   })
 
   testCases.forEach(({ reserveBalance, withdrawAmount }) => {
-    it('should spend the correct amount of gas', async function () {
+    it('should spend no more than SWAP_GAS estimate', async function () {
       // Arrange
       const { energy, trader, traderAddr, admin, alice, SWAP_GAS } = await fixture()
 
+      const routerIndex = 0
       const maxRate = 100_000
 
       await saveConfig(trader, alice, reserveBalance)
       await approveEnergy(energy, alice, traderAddr, MaxUint256)
 
       // Act
-      const swapReceipt = await swap(trader, admin, alice.address, 0, withdrawAmount, maxRate)
+      const swapReceipt = await swap(trader, admin, alice.address, routerIndex, withdrawAmount, maxRate)
 
       // Assert
-      expect(swapReceipt?.gasUsed).to.equal(SWAP_GAS)
+      expect(swapReceipt?.gasUsed).to.be.lte(SWAP_GAS)
     })
   })
 

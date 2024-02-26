@@ -4,7 +4,7 @@ import { Energy } from '../typechain-types'
 import * as energyArtifact from '../artifacts/contracts/vechain/Energy.sol/Energy.json'
 import { ENERGY_CONTRACT_ADDRESS } from '../constants'
 
-const { getSigners, getContractFactory, Contract } = ethers
+const { getSigners, Contract } = ethers
 
 describe('Energy', function () {
   async function fixture() {
@@ -17,8 +17,10 @@ describe('Energy', function () {
   }
 
   it('should set the constructor args to the supplied values', async function () {
+    // Arrange
     const { energy, energyAddr } = await fixture()
 
+    // Act + assert
     expect(await energy.name()).to.equal('VeThor')
     expect(await energy.decimals()).to.equal(18)
     expect(await energy.symbol()).to.equal('VTHO')
@@ -27,8 +29,10 @@ describe('Energy', function () {
   })
 
   it('should provide a positive initial balance for all test accounts', async function () {
+    // Arrange
     const { energy, god, alice } = await fixture()
 
+    // Act + assert
     for (const signer of [god, alice]) {
       expect(await energy.balanceOf(signer.address)).to.be.gt(0)
     }

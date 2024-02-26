@@ -22,6 +22,7 @@ describe('Trader.constructor', function () {
     expect(await trader.owner()).to.equal(owner.address)
     expect(await trader.admin()).to.equal(ZeroAddress)
     expect(await trader.feeMultiplier()).to.equal(30)
+    expect(await trader.baseGasPrice()).to.equal(BigInt(1e15))
   })
 
   it('should revert if routers address is not provided', async function () {

@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
+import { IParams } from "./interfaces/IParams.sol";
 
 // TODO: should we include ownable from openzepplin?
 
@@ -15,7 +16,11 @@ contract Trader {
    * @dev Interface to interact with the Energy (VTHO) contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
-  // ? Would it be cheaper to store only the address and create a local reference inside each function?
+
+  /**
+   * @dev Interface to interact with the Params contract.
+   */
+  IParams public constant params = IParams(0x0000000000000000000000000000506172616D73);
 
   /**
    * @dev Interface to interact with the UniswapV2 routers.
@@ -48,19 +53,25 @@ contract Trader {
   uint8 public feeMultiplier = 30;
 
   /**
-   * @dev Maximum VTHO amount that can be withdrawn in one trade.
+   * @dev Base gas price fetched from Params VeChain contract.
    */
-  uint256 public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
+  uint256 public baseGasPrice;
+
+  /**
+   * @dev Maximum VTHO amount that can be withdrawn in one trade.
+   * The aim is to prevent sandwich attacks.
+   */
+  uint256 public constant MAX_WITHDRAW_AMOUNT = 10_000e18;
   // TODO: can we replace this by fetching the selected
   // dex's reserves and requiring the amountIn to be less
   // than a percentage of the reserves and the resulting slippage
   // lower than certain value?
 
   /**
-   * @dev Estimated gas cost for running the swap function with an upper bound of 10_000
-   * as the withdrawAmount input.
+   * @dev Estimated gas cost for running the swap function with an
+   * upper bound of 0xfffffffffffffffffff for the withdrawAmount input.
    */
-  uint256 public constant SWAP_GAS = 265_652;
+  uint256 public constant SWAP_GAS = 266_321;
 
   /**
    * @dev Dictionary matching account address to reserveBalance.
@@ -111,16 +122,10 @@ contract Trader {
   constructor(address[2] memory routers_) {
     // Set deployer as the owner.
     owner = msg.sender;
-
     // Initialize uniV2 routers.
-    // TODO: should we use an internal fn to init the set of routers?
-    // See: https://github.com/PatrickAlphaC/hardhat-nft-fcc/blob/main/contracts/RandomIpfsNft.sol#L93C1-L99C6
-    // for (uint8 i = 0; i < 2; i++) {
-    //   if (routers_[i] == address(0)) revert Trader__ZeroAddress();
-
-    //   routers[i] = routers_[i];
-    // }
     routers = routers_;
+
+    fetchBaseGasPrice();
   }
 
   // If neither a *receive* Ether nor a payable *fallback* function is present,
@@ -128,6 +133,16 @@ contract Trader {
   // an exception.
   // TODO: test sending VET directly to the contract should revert given
   // the fact that we didn't specify a fallback fn
+
+  /**
+   * @dev Fetch and store base gas price from VeChain Params contract.
+   *
+   * Anybody should be able to call this function.
+   */
+  function fetchBaseGasPrice() public {
+    baseGasPrice = params.get(0x000000000000000000000000000000000000626173652d6761732d7072696365);
+    // ^ https://github.com/vechain/thor/blob/f77ab7f286d3b53da1b48c025afc633a7bd03561/thor/params.go#L44
+  }
 
   /**
    * @dev Associate reserveBalance to the caller.
@@ -181,28 +196,31 @@ contract Trader {
   }
 
   /**
-   * @notice Withdraw VTHO from the target account, perform a swap for VET tokens through a DEX,
-   * and return the resulting tokens back to the original account.
-   * @param account Account owning the VTHO tokens.
-   * _param withdrawAmount Amount of VTHO to be withdrawn from the account and swapped for VET.
-   * @param maxRate Maximum accepted exchange rate. For example `maxRate = 20_000` (3 decimal precision) implies
-   * `you get 1 VET for every 20 VTHO you deposit`. The higher the maxRate the lower the output amount in VET.
-   * @dev Trader contract must be given approval for VTHO token spending in behalf of the
+   * @dev Withdraw VTHO from the target account, deduce tx and protocol fees,
+   * perform a swap for VET tokens through a DEX, and return the resulting tokens back
+   * to the original account.
+   *
+   * The Trader contract must be given approval for VTHO token spending in behalf of the
    * target account priot to calling this function.
+   *
+   * @param account Account owning the VTHO tokens.
+   * @param routerIndex Index of the router to be used for the swap.
+   * @param withdrawAmount Amount of VTHO to be withdrawn from the account.
+   * @param maxRate Maximum accepted exchange rate holding a 3 decimal precision.
+   * For example `maxRate = 20_000` implies `you get 1 VET for every 20 VTHO you deposit`.
+   * The higher the maxRate the lower the output amount in VET.
    */
     // uint256[] memory amounts = router.getAmountsOut(amountIn, path);
   /// OBS: we cannot pass amountOutputMin because we don't know the the gas price before hand (?)
   /// TODO: see https://solidity-by-example.org/defi/uniswap-v2/ for naming conventions
   /// TODO: check this out https://medium.com/buildbear/uniswap-testing-1d88ca523bf0
   /// TODO: add exchangeId to select exchange to be used
-  /// TODO: secure this function onlyOwner or onlyOwnerOrAdmin
   // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
-  // TODO: what happens if an attacker sets maxRate is >> 0? The contract should revert
+  // TODO: what happens if an attacker sets maxRate >> 0? The contract should revert
 	function swap(
     address payable account,
     uint8 routerIndex,
     uint256 withdrawAmount,
-    // TODO: pass gasEstimate instead of SWAP_GAS. gasEstimate is an UB of tx gas cost
     uint256 maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
     // ^ TODO: maxRate should have a 3 decimal precision. For instance, a maxRate of 13580
     // it's actually representing a 13,580 exchangeRate. We need to divide by 1000 after
@@ -211,7 +229,8 @@ contract Trader {
     external
     onlyAdmin
   {
-    uint256 startGas = gasleft();
+    // Make sure gas price is bounded.
+    require(tx.gasprice <= 2 * baseGasPrice, "Trader: gas price too high");
 
     _validateWithdrawAmount(account, withdrawAmount);
     // TODO: withdrawAmount should be big enough to make the tx worth it
@@ -243,14 +262,8 @@ contract Trader {
     // Transfer the specified amount of VTHO to this contract.
     require(vtho.transferFrom(account, address(this), withdrawAmount), "Trader: transfer from failed");
 
-    // TODO: should we set a gasLimit in price?
-    // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
-    // We are setting a low gas price when submitting the tx.
-    // Over estimate the tx cost. At the end we refund the user with unused gas.
-    // TODO: we should be able to update SWAP_GAS
+    // Calulate transaction fee. We paid this upfront so it's time to get paid back.
     uint256 txFee = SWAP_GAS * tx.gasprice;
-    // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
-    // manipulated
 
     // Calculate protocolFee once txFee has been deduced.
     uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
@@ -283,22 +296,6 @@ contract Trader {
 
     // TODO: should we assert previousVETBalance > newVETBalance?
 
-    // We want to charge users exactly for how much gas was required for the tx.
-    // The gasAfterRefundCalculation is meant to cover these additional operations where we
-    // refund the user for any non used gas charged upfront.
-    uint256 refund = _calculateRefundAmount(
-      startGas,
-      SWAP_GAS,
-      41_300, // transfer to a non zero balance account TODO: plus if (refund > 0) statement + gas for calling the _calculateRefundAmount
-      tx.gasprice
-    );
-
-    // Refund target account
-    // TODO: find an upper limit for the operations below
-    if (refund > 0) {
-      require(vtho.transfer(account, refund), "Trader: refund failed");
-    }
-
 		emit Swap(
       account,
       withdrawAmount,
@@ -309,9 +306,8 @@ contract Trader {
       // TODO: add amountIn
       amountOutMin,
       amounts[amounts.length - 1]
-      // TODO: include refund
-    ); // 2_300 gas at the time of writting
-	}
+    );
+  }
 
   function _validateWithdrawAmount(address account, uint256 withdrawAmount) internal view {
     // Fetch reserveBalance for target account.
@@ -325,16 +321,5 @@ contract Trader {
 
     // Make sure reserveBalance is satisfied.
     require(balance >= withdrawAmount + reserveBalance, "Trader: insufficient balance");
-  }
-
-    // Get the amount of gas used for fulfillment
-  function _calculateRefundAmount(
-    uint256 startGas,
-    uint256 gasEstimate,
-    uint256 gasAfterRefundCalculation,
-    uint256 gasPrice
-  ) internal view returns (uint256) {
-    // gasEstimate - gasUsed - gasAfterRefundCalculation
-    return (gasEstimate - startGas + gasleft() - gasAfterRefundCalculation) * gasPrice;
   }
 }

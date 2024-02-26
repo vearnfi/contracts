@@ -9,6 +9,7 @@ export async function swap(
   withdrawAmount: bigint,
   maxRate: number
 ): Promise<ContractTransactionReceipt | null> {
+  // console.log(await trader.connect(signer).swap.estimateGas(targetAddress, routerIndex, withdrawAmount, maxRate))
   const tx = await trader.connect(signer).swap(targetAddress, routerIndex, withdrawAmount, maxRate)
   return tx.wait(1)
 }

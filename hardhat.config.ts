@@ -1,12 +1,10 @@
 import * as dotenv from 'dotenv'
 dotenv.config()
 import type { HardhatUserConfig } from 'hardhat/config'
-import "@nomicfoundation/hardhat-toolbox";
-import "@vechain/hardhat-vechain";
-import '@vechain/hardhat-ethers';
-import {
-  VECHAIN_URL_SOLO
-} from "@vechain/hardhat-vechain";
+import '@nomicfoundation/hardhat-toolbox'
+import '@vechain/hardhat-vechain'
+import '@vechain/hardhat-ethers'
+import { VECHAIN_URL_SOLO } from '@vechain/hardhat-vechain'
 
 const config: HardhatUserConfig = {
   solidity: {
