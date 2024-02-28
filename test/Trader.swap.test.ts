@@ -153,7 +153,7 @@ describe('Trader.swap', function () {
     await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejected
   })
 
-  it.only('should revert if account does not set a reserve balance', async () => {
+  it('should revert if account does not set a reserve balance', async () => {
     // Arrange
     const { energy, trader, traderAddr, admin, alice } = await fixture()
 
