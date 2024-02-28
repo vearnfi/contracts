@@ -3,96 +3,102 @@ pragma solidity ^0.8.19;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
-
-// TODO: should we include ownable from openzepplin?
+import { IParams } from "./interfaces/IParams.sol";
 
 /**
- * @title Automatic VTHO to VET swaps.
+ * @title Trader: Automatic VTHO to VET token swaps.
  * @author Feder
+ * @dev This contract is designed to be deployed on VeChain, an EVM-compatible network with
+ * a unique two-token model:
+ * - VTHO: An ERC20 token used as gas.
+ * - VET: The native token, which generates VTHO at a constant rate of 5*10^-8 VTHO per VET per
+ * block when held in an account or contract.
+ *
+ * @notice
+ * 1. VeChain does not support custom errors, resulting in empty revert reasons.
+ * Therefore, string errors are used for error handling.
+ *
+ * 2. VeChain lacks access to on-chain price oracles.
  */
 contract Trader {
   /**
-   * @dev Interface to interact with the Energy (VTHO) contract.
+   * @dev Interface for interacting with the Energy (VTHO) contract.
    */
   IEnergy public constant vtho = IEnergy(0x0000000000000000000000000000456E65726779);
 
   /**
-   * @dev Interface to interact with the UniswapV2 routers.
+   * @dev Interface for interacting with the Params contract.
    */
-  // IUniswapV2Router02 public router;
-  address[2] public routers; // = new address[](2);
+  IParams public constant params = IParams(0x0000000000000000000000000000506172616D73);
 
   /**
-   * @dev Protocol owner.
-   *
-   * The owner is the only role with access to the setFeeMultiplier, setAdmin and withdrawFees functions.
+   * @dev Address of the VVET contract (equivalent to WETH).
+   */
+  address public immutable vvet;
+
+  /**
+   * @dev Protocol owner, who has access to specific functions such as setting fee multipliers
+   * setting admin accounts and withdrawing fees.
    */
   address public immutable owner;
 
   /**
-   * @dev Protocol admin.
-   *
-   * The admin is the only role with access to swap function.
+   * @dev Admin of the protocol, responsible for executing the swap function.
    */
   address public admin;
 
   /**
-   * @dev Multiplier used to calculate protocol fee based on the following formula:
-   *
-   * uint protocolFee = amount * feeMultiplier / 10_000.
-   *
-   * For instance, if feeMultiplier equals 30, it means we are applying a 0.3 % fee
-   * to the amount being swapped.
+   * @dev List of addresses of UniswapV2 routers.
+   */
+  address[2] public routers;
+
+  /**
+   * @dev Multiplier used to calculate protocol fees.
+   * For example, a fee multiplier of 30 applies a 0.3% fee to the amount being swapped.
    */
   uint8 public feeMultiplier = 30;
 
   /**
-   * @dev Maximum VTHO amount that can be withdrawn in one trade.
+   * @dev Base gas price fetched from the VeChain Params contract.
    */
-  uint public constant MAX_WITHDRAW_AMOUNT = 1_000e18;
-  // TODO: can we replace this by fetching the selected
-  // dex's reserves and requiring the amountIn to be less
-  // than a percentage of the reserves and the resulting slippage
-  // lower than certain value?
+  uint256 public baseGasPrice;
 
   /**
-   * @dev Gas consumed by the swap function.
+   * @dev Estimated gas cost for executing the swap function with an upper bound
+   * of 0xfffffffffffffffffff for the withdrawAmount parameter.
    */
-  // Fee Calculation: In blockchain networks, transaction fees are
-  // generally calculated based on the size of the transaction (in bytes),
-  // the type of transaction, the network congestion and the priority of
-  // the transaction.
-  uint public constant SWAP_GAS = 265652;
-  // TODO: SWAP_GAS should be private
+  uint256 public constant SWAP_GAS = 285_844;
 
   /**
-   * @dev Dictionary matching account address to reserveBalance.
+   * @dev Mapping of account addresses to reserve balances.
    */
-  mapping(address => uint) public reserves;
+  mapping(address => uint256) public reserves;
 
   /**
-   * @dev Account has set a new swap configuration.
+   * @dev Emitted when an account sets a new swap configuration.
    */
   event Config(
     address indexed account,
-    uint reserveBalance
+    uint256 reserveBalance
   );
 
   /**
-   * @dev A swap operation has been completed.
+   * @dev Emitted when a swap operation is completed.
    */
   event Swap(
     address indexed account,
-    uint withdrawAmount,
-    uint gasPrice,
-    uint protocolFee,
-    uint maxRate,
-    uint amountOutMin,
-    uint amountOut
+    uint256 withdrawAmount,
+    uint256 gasPrice,
+    uint256 feeMultiplier,
+    uint256 protocolFee,
+    uint256 amountIn,
+    uint256 amountOutMin,
+    uint256 amountOutExpected,
+    uint256 amountOutReceived
   );
 
   /**
-   * @dev Prevents calling a function from anyone except the owner.
+   * @dev Modifier to restrict function access to the owner.
    */
   modifier onlyOwner() {
     require(msg.sender == owner, "Trader: account is not owner");
@@ -100,7 +106,7 @@ contract Trader {
   }
 
   /**
-   * @dev Prevents calling a function from anyone except the admin.
+   * @dev Modifier to restrict function access to the admin.
    */
   modifier onlyAdmin() {
     require(msg.sender == admin, "Trader: account is not admin");
@@ -109,36 +115,29 @@ contract Trader {
 
   /**
    * @dev Initializes the contract by setting the list of available DEXs
-   * as well as the contract owner.
+   * and the contract owner.
    */
-  constructor(address[2] memory routers_) {
-    // Set deployer as the owner.
-    owner = msg.sender;
-
-    // Initialize uniV2 routers.
-    // TODO: should we use an internal fn to init the set of routers?
-    // See: https://github.com/PatrickAlphaC/hardhat-nft-fcc/blob/main/contracts/RandomIpfsNft.sol#L93C1-L99C6
-    // for (uint8 i = 0; i < 2; i++) {
-    //   if (routers_[i] == address(0)) revert Trader__ZeroAddress();
-
-    //   routers[i] = routers_[i];
-    // }
+  constructor(address vvet_, address[2] memory routers_) {
+    vvet = vvet_;
     routers = routers_;
+    owner = msg.sender;
+    fetchBaseGasPrice();
   }
 
-  // If neither a *receive* Ether nor a payable *fallback* function is present,
-  // the contract cannot receive Ether through regular transactions and throws
-  // an exception.
-  // TODO: test sending VET directly to the contract should revert given
-  // the fact that we didn't specify a fallback fn
+  /**
+   * @dev Fetches and stores the base gas price from the VeChain Params contract.
+   */
+  function fetchBaseGasPrice() public {
+    baseGasPrice = params.get(0x000000000000000000000000000000000000626173652d6761732d7072696365);
+    // ^ https://github.com/vechain/thor/blob/f77ab7f286d3b53da1b48c025afc633a7bd03561/thor/params.go#L44
+  }
 
   /**
-   * @dev Associate reserveBalance to the caller.
-   *
+   * @dev Associates a reserve balance with the caller's account.
    * Enforce reserveBalance to be non zero so that when the `swap`
    * method gets called we can verify that the config has been initilized.
    */
-  function saveConfig(uint reserveBalance) external {
+  function saveConfig(uint256 reserveBalance) external {
     require(reserveBalance > 0, "Trader: invalid reserve");
 
     reserves[msg.sender] = reserveBalance;
@@ -147,11 +146,7 @@ contract Trader {
   }
 
   /**
-   * @dev Set a new protocol feeMultiplier.
-   *
-   * The caller must have owner role.
-   *
-   * The supplied value must be between 0 and 30 (0% and 0.3% fee respectively).
+   * @dev Sets a new protocol fee multiplier.
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
     // Ensures the protocol fee can never be higher than 0.3%.
@@ -161,151 +156,123 @@ contract Trader {
   }
 
   /**
-   * @dev Set a new admin account.
-   *
-   * The caller must have owner role.
+   * @dev Sets a new admin account.
    */
   function setAdmin(address newAdmin) external onlyOwner {
     admin = newAdmin;
   }
 
   /**
-   * @dev Withdraw fees accrued by the protocol.
-   *
-   * The caller must have owner role.
-   *
-   * Accrued fees include both protocol and transaction fees.
-   *
-   * Use the `Transfer` event emitted by the Energy contract to track this
-   * method call.
+   * @dev Withdraws accrued fees by the protocol.
+   * Use the `Transfer` event emitted by the Energy contract to track this tx.
    */
   function withdrawFees() external onlyOwner {
     vtho.transfer(owner, vtho.balanceOf(address(this)));
   }
 
   /**
-   * @notice Withdraw VTHO from the target account, perform a swap for VET tokens through a DEX,
-   * and return the resulting tokens back to the original account.
-   * @param account Account owning the VTHO tokens.
-   * _param withdrawAmount Amount of VTHO to be withdrawn from the account and swapped for VET.
-   * @param maxRate Maximum accepted exchange rate. For example `maxRate = 20_000` (3 decimal precision) implies
-   * `you get 1 VET for every 20 VTHO you deposit`. The higher the maxRate the lower the output amount in VET.
-   * @dev Trader contract must be given approval for VTHO token spending in behalf of the
+   * @dev Withdraw VTHO from the target account, deduce tx and protocol fees,
+   * perform a swap for VET tokens through a DEX, and return the resulting tokens back
+   * to the original account.
+   *
+   * The Trader contract must be given approval for VTHO token spending in behalf of the
    * target account priot to calling this function.
+   *
+   * @param account Account owning the VTHO tokens.
+   * @param withdrawAmount Amount of VTHO to be withdrawn from the account.
+   * @param amountOutMin Minimum output amount computed using an off-chain price oracle.
    */
-    // uint[] memory amounts = router.getAmountsOut(amountIn, path);
-  /// OBS: we cannot pass amountOutputMin because we don't know the the gas price before hand (?)
-  /// TODO: see https://solidity-by-example.org/defi/uniswap-v2/ for naming conventions
-  /// TODO: check this out https://medium.com/buildbear/uniswap-testing-1d88ca523bf0
-  /// TODO: add exchangeId to select exchange to be used
-  /// TODO: secure this function onlyOwner or onlyOwnerOrAdmin
-  // TODO: should we use reentrancy since we are modifying the state of the VTHO token?
-  // TODO: what happens if an attacker sets maxRate is >> 0? The contract should revert
-	function swap(
-    address payable account, // TODO: rename to owner
-    uint8 routerIndex,
-    uint withdrawAmount,
-    uint maxRate // TODO: do we need maxRate if we check balance / vthoReserves < 0.01 ?
-    // ^ TODO: maxRate should have a 3 decimal precision. For instance, a maxRate of 13580
-    // it's actually representing a 13,580 exchangeRate. We need to divide by 1000 after
-    // multiplying by the exchange rate.
-  )
-    external
-    onlyAdmin
-  {
+	function swap(address payable account, uint256 withdrawAmount, uint256 amountOutMin) external onlyAdmin {
+    require(tx.gasprice <= 2 * baseGasPrice, "Trader: gas price too high");
+
     _validateWithdrawAmount(account, withdrawAmount);
-    // TODO: withdrawAmount should be big enough to make the tx worth it
-
-
-    // TODO: balance / vthoReserves < 0.01 (1%) // By enforing this, am I enforcing slippage < some value?
-    // What happens if vthoReserves >>> vetReserves? Let's suppose the pool is inbalanced
-    // This should not happen due to arbitrage oportunity (but could happen via sandwich)
-    // TODO: what if we require withdrawAmount / vthoReserves < 0.01 (1%)
-    // && minAmountOut / vvetReserves < 0.01 (1%)? Would that ensure slippage?
-    // TODO: totalFees / balance < 0.1 (10%)
-
-    // Make sure we don't get sandwiched
-    // pair.getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
-
-    // Enforce a cap to the withdraw amount and make sure the reserveBalance is kept in the account.
-    // TODO: can we simplify this using Math.min(balance - config.reserveBalance, MAX_WITHDRAW_AMOUNT)
-    // Then, is we remove triggerBalance, we can remove the balance variable and use vtho.balanceOf(account)
-    // directly inside the Math.min(...)
-    // uint withdrawAmount = balance >= MAX_WITHDRAW_AMOUNT + config.reserveBalance
-    //   ? MAX_WITHDRAW_AMOUNT
-    //   : balance - config.reserveBalance;
-    // TODO: once exchangeId is set, test routerAddress != address(0)
-    // require(exchangeRouter != address(0), "exchangeRouter needs to be set");
-
-    // TODO: can we avoid being sandwiched by requesting for amountIn < alpha * reserve
-    // TODO: fees should be below certain threshold?
 
     // Transfer the specified amount of VTHO to this contract.
     require(vtho.transferFrom(account, address(this), withdrawAmount), "Trader: transfer from failed");
 
-    // TODO: should we set a gasLimit in price?
-    // Calulate transaction fee. (We paid this upfront so it's time to get paid back).
-    // We are setting a low gas price when submitting the tx.
-    uint txFee = SWAP_GAS * tx.gasprice;
-    // TODO: Math.min(SWAP_GAS, gasLeft)?
-    // TODO: should we fetch gasPrice from Params contract? Oterwise tx.gasprice could be
-    // manipulated
+    // Calulate transaction fee. We paid this upfront so it's time to get paid back.
+    uint256 txFee = SWAP_GAS * tx.gasprice;
 
     // Calculate protocolFee once txFee has been deduced.
-    uint protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+    uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
 
     // Substract fee and tx cost from the initial withdraw amount.
     // The remainder is sent to the DEX.
-    uint amountIn = withdrawAmount - txFee - protocolFee;
-    // TODO: This could potentially throw if tx fee > withdrawAmount
+    // Notice: This could potentially throw if fees > withdrawAmount.
+    uint256 amountIn = withdrawAmount - txFee - protocolFee;
 
-    // Calculate the minimum expected output (VET).
-    uint amountOutMin = amountIn * 1000 / maxRate;
+    address[] memory path = new address[](2);
+    path[0] = address(vtho);
+    path[1] = vvet;
 
-    // Initialize router for the chosen DEX.
-    IUniswapV2Router02 router = IUniswapV2Router02(routers[routerIndex]);
+    (IUniswapV2Router02 router, uint256 amountOutExpected) = _selectRouter(path, amountIn);
+
+    // Make sure off-chain price oracle is close enough to the selected router output.
+    require(amountOutExpected >= amountOutMin, "Trader: amount out expected too low");
 
     // Approve the router to spend VTHO.
     require(vtho.approve(address(router), amountIn), "Trader: approve failed");
 
-    // TODO: amountOutMin must be retrieved from an oracle of some kind
-    address[] memory path = new address[](2);
-    path[0] = address(vtho);
-    path[1] = router.WETH();
-    uint[] memory amounts = router.swapExactTokensForETH(
+    uint256[] memory amountsReceived = router.swapExactTokensForETH(
       amountIn,
-      amountOutMin,
+      amountOutExpected * 990 / 1000, // Accept a 1% slippage
       path,
       account,
-      block.timestamp // TODO: What about deadline?
+      block.timestamp // We can set this value when creating the tx
     );
-
-    // TODO: should we assert previousVETBalance > newVETBalance?
 
 		emit Swap(
       account,
       withdrawAmount,
       tx.gasprice,
-      // TODO: feeMultiplier
+      feeMultiplier,
       protocolFee,
-      maxRate,
-      // TODO: add amountIn
+      amountIn,
       amountOutMin,
-      amounts[amounts.length - 1]
+      amountOutExpected,
+      amountsReceived[amountsReceived.length - 1]
     );
-	}
-
-  function _validateWithdrawAmount(address account, uint withdrawAmount) internal view {
-    // Fetch reserveBalance for target account.
-    uint reserveBalance = reserves[account];
-
-    // Make sure reserveBalance has been initialized.
-    require(reserveBalance > 0, "Trader: invalid reserve");
-
-    // Fetch target account balance (VTHO).
-    uint balance = vtho.balanceOf(account);
-
-    // Make sure reserveBalance is satisfied.
-    require(balance >= withdrawAmount + reserveBalance, "Trader: insufficient balance");
   }
+
+  /**
+   * @dev Validates the withdrawal amount against the reserve balance.
+   */
+  function _validateWithdrawAmount(address account, uint256 withdrawAmount) internal view {
+    uint256 reserveBalance = reserves[account];
+
+    require(reserveBalance > 0, "Trader: reserve not initialized");
+
+    require(vtho.balanceOf(account) >= withdrawAmount + reserveBalance, "Trader: insufficient balance");
+  }
+
+  /**
+   * @dev Selects the router that yields the best output from the list of available routers.
+   */
+  function _selectRouter(
+    address[] memory path,
+    uint256 amountIn
+  ) internal view returns(IUniswapV2Router02, uint256) {
+    uint256 routerIndex = 0;
+    uint256 amountOut = 0;
+
+    for (uint256 i = 0; i < routers.length; i++) {
+      IUniswapV2Router02 router = IUniswapV2Router02(routers[i]);
+
+      uint256[] memory amountsExpected = router.getAmountsOut(
+        amountIn,
+        path
+      );
+
+      uint256 amountOutExpected = amountsExpected[1];
+
+      if (amountOutExpected > amountOut) {
+        routerIndex = i;
+        amountOut = amountOutExpected;
+      }
+    }
+
+    return (IUniswapV2Router02(routers[routerIndex]), amountOut);
+  }
+
+  // This contract cannot receive VET through regular transactions and throws an exception.
 }

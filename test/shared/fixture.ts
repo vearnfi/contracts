@@ -1,13 +1,7 @@
-import { ethers, network } from 'hardhat'
+import { ethers } from 'hardhat'
 import type { AddressLike } from 'ethers'
 import { expect } from 'chai'
-import {
-  ENERGY_CONTRACT_ADDRESS,
-  PARAMS_CONTRACT_ADDRESS,
-  EXECUTOR_CONTRACT_ADDRESS,
-  BASE_GAS_PRICE,
-  SUPPORTED_DEXS_COUNT,
-} from '../../constants'
+import { ENERGY_CONTRACT_ADDRESS, PARAMS_CONTRACT_ADDRESS, SUPPORTED_DEXS_COUNT } from '../../constants'
 import { Energy, Params, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../typechain-types'
 import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
 import * as paramsArtifact from '../../artifacts/contracts/vechain/Params.sol/Params.json'
@@ -15,7 +9,7 @@ import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/Uniswap
 import { expandTo18Decimals } from './expand-to-18-decimals'
 import { approveEnergy } from './approve-energy'
 
-const { getSigner, getSigners, getContractFactory, Contract, ZeroAddress, MaxUint256, provider } = ethers
+const { getSigners, getContractFactory, Contract, ZeroAddress, MaxUint256, provider } = ethers
 
 export async function fixture() {
   // NOTE: these account run out of gas the more we run tests! Fix!
@@ -31,9 +25,11 @@ export async function fixture() {
 
   expect(await provider.getCode(paramsAddr)).not.to.have.length(0)
 
+  // await provider.getFeeData()).gasPrice -> 0n
+
   const baseGasPriceKey = '0x000000000000000000000000000000000000626173652d6761732d7072696365'
   // ^ https://github.com/vechain/thor/blob/f77ab7f286d3b53da1b48c025afc633a7bd03561/thor/params.go#L44
-  const baseGasPrice = await params.get(baseGasPriceKey)
+  const baseGasPrice = (await params.get(baseGasPriceKey)) as bigint
   // ^ baseGasPrice is 1e^15, 2 orders of magnitude higher than on live networks
 
   const VVET9 = await getContractFactory('VVET9', god)
@@ -65,7 +61,7 @@ export async function fixture() {
   }
 
   const Trader = await getContractFactory('Trader', owner)
-  const trader = await Trader.deploy(routersAddr as [AddressLike, AddressLike])
+  const trader = await Trader.deploy(vvet9Addr, routersAddr as [AddressLike, AddressLike])
   const traderAddr = await trader.getAddress()
 
   expect(await provider.getCode(traderAddr)).not.to.have.length(0)
@@ -122,7 +118,6 @@ export async function fixture() {
   }
 
   const SWAP_GAS = await trader.SWAP_GAS()
-  const MAX_WITHDRAW_AMOUNT = await trader.MAX_WITHDRAW_AMOUNT()
 
   // Burn all VET from all test accounts in order to avoid changes
   // in VTHO account balance
@@ -155,6 +150,5 @@ export async function fixture() {
     trader,
     traderAddr,
     SWAP_GAS,
-    MAX_WITHDRAW_AMOUNT,
   }
 }
