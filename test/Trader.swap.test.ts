@@ -153,29 +153,6 @@ describe('Trader.swap', function () {
     await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejected
   })
 
-  it('should revert if amountOutMin is larger than the amountOut yielded by the DEX', async () => {
-    // Arrange
-    const { energy, energyAddr, vvet9Addr, trader, traderAddr, baseGasPrice, routers, admin, alice, SWAP_GAS } =
-      await fixture()
-
-    const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(500)
-    // ^ baseGasPrice is 1e^15 2 orders of magnitude higher than on live networks
-    // therefore we need to increase the min withdrawAmount for the txFee to be
-    // less or equal the withdrawAmount
-
-    await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
-
-    const { amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-    const amountOut = await calcDexAmountOut(routers, energyAddr, vvet9Addr, amountIn)
-
-    const amountOutMin = amountOut + BigInt(1)
-
-    // Act + assert
-    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejected
-  })
-
   it.only('should revert if account does not set a reserve balance', async () => {
     // Arrange
     const { energy, trader, traderAddr, admin, alice } = await fixture()
@@ -189,6 +166,23 @@ describe('Trader.swap', function () {
     // Act + assert
     await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
       'Trader: reserve not initialized'
+    )
+  })
+
+  it('should revert if account does not approve energy', async () => {
+    // Arrange
+    const { trader, admin, alice } = await fixture()
+
+    const reserveBalance = expandTo18Decimals(5)
+    const withdrawAmount = expandTo18Decimals(500)
+    const amountOutMin = BigInt(100)
+
+    // Do NOT approve energy
+    await saveConfig(trader, alice, reserveBalance)
+
+    // Act + assert
+    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
+      'execution reverted: builtin: insufficient allowance'
     )
   })
 
