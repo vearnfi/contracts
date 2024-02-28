@@ -5,11 +5,10 @@ export async function swap(
   trader: Trader,
   signer: Signer,
   targetAddress: string | Address,
-  routerIndex: number,
   withdrawAmount: bigint,
-  maxRate: number
+  amountOutMin: bigint
 ): Promise<ContractTransactionReceipt | null> {
-  // console.log(await trader.connect(signer).swap.estimateGas(targetAddress, routerIndex, withdrawAmount, maxRate))
-  const tx = await trader.connect(signer).swap(targetAddress, routerIndex, withdrawAmount, maxRate)
+  // console.log(await trader.connect(signer).swap.estimateGas(targetAddress, withdrawAmount, amountOutMin))
+  const tx = await trader.connect(signer).swap(targetAddress, withdrawAmount, amountOutMin)
   return tx.wait(1)
 }

@@ -61,7 +61,7 @@ export async function fixture() {
   }
 
   const Trader = await getContractFactory('Trader', owner)
-  const trader = await Trader.deploy(routersAddr as [AddressLike, AddressLike])
+  const trader = await Trader.deploy(vvet9Addr, routersAddr as [AddressLike, AddressLike])
   const traderAddr = await trader.getAddress()
 
   expect(await provider.getCode(traderAddr)).not.to.have.length(0)
@@ -118,7 +118,6 @@ export async function fixture() {
   }
 
   const SWAP_GAS = await trader.SWAP_GAS()
-  const MAX_WITHDRAW_AMOUNT = await trader.MAX_WITHDRAW_AMOUNT()
 
   // Burn all VET from all test accounts in order to avoid changes
   // in VTHO account balance
@@ -151,6 +150,5 @@ export async function fixture() {
     trader,
     traderAddr,
     SWAP_GAS,
-    MAX_WITHDRAW_AMOUNT,
   }
 }
