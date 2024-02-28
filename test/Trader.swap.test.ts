@@ -153,6 +153,22 @@ describe('Trader.swap', function () {
     await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejected
   })
 
+  it('should revert if account does not set a reserve balance', async () => {
+    // Arrange
+    const { energy, trader, traderAddr, admin, alice } = await fixture()
+
+    const withdrawAmount = expandTo18Decimals(500)
+    const amountOutMin = BigInt(100)
+
+    // Do NOT set reserveBalance
+    await approveEnergy(energy, alice, traderAddr, MaxUint256)
+
+    // Act + assert
+    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
+      'Trader: reserve not initialized'
+    )
+  })
+
   it('should revert if account does not approve energy', async () => {
     // Arrange
     const { trader, admin, alice } = await fixture()
