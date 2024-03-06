@@ -70,7 +70,7 @@ export async function fixture() {
   expect(await trader.admin()).to.equal(ZeroAddress)
 
   const tx0 = await trader.connect(owner).setAdmin(admin.address)
-  await tx0.wait()
+  await tx0.wait(1)
 
   expect(await trader.admin()).to.equal(admin.address)
 
@@ -81,7 +81,7 @@ export async function fixture() {
 
     // Create VVET9-VTHO pair
     const tx1 = await factory.createPair(energyAddr, vvet9Addr)
-    await tx1.wait()
+    await tx1.wait(1)
 
     const pairAddress = await factory.getPair(energyAddr, vvet9Addr)
 
@@ -104,7 +104,7 @@ export async function fixture() {
       token0Amount, // amountTokenDesired
       0, // amountTokenMin
       0, // amountETHMin,
-      god.address, // to
+      god.address, // to: recipient of the liquidity tokens
       MaxUint256, // deadline
       { value: token1Amount /*gasLimit: 30000000,*/ /*hexlify(9999999) */ }
     )

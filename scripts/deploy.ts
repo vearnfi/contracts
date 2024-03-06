@@ -2,7 +2,10 @@ import { network, ethers } from 'hardhat'
 import { getChainData } from '@vearnfi/config'
 import type { ChainId } from '@vearnfi/config'
 
-const { name, config: { chainId } } = network
+const {
+  name,
+  config: { chainId },
+} = network
 
 async function main() {
   console.log('Deploying contract...')
@@ -13,54 +16,39 @@ async function main() {
     return
   }
 
-  const { dexs } = getChainData(chainId as ChainId)
+  const { vvet, dexs } = getChainData(chainId as ChainId)
 
   const [deployer] = await ethers.getSigners()
   console.log({ deployer: await deployer.getAddress() })
 
   const Trader = await ethers.getContractFactory('Trader')
-  const trader = await Trader.connect(deployer).deploy(dexs.map((dex) => dex.routerV2) as [Address, Address])
+  // const trader = await Trader.connect(deployer).deploy(vvet, dexs.map((dex) => dex.routerV2) as [Address, Address])
+  // Only for testnet! Vexchange doesn't seem to work on testnet.
+  const verocket = dexs.find((dex) => dex.name === 'verocket')
 
-  await trader.waitForDeployment()
-  console.log(`Trader contract deployed to ...`)
-  console.log(JSON.stringify(trader.deploymentTransaction(), null, 2))
+  if (verocket == null) throw new Error('Verocket not found')
 
-  // TODO: set admin
-  // const tx = await trader.setAdmin(deployer.address);
-  // tx.wait();
+  const trader = await Trader.connect(deployer).deploy(vvet, [verocket.routerV2, verocket.routerV2] as [
+    Address,
+    Address
+  ])
+
+  const receipt = await trader.waitForDeployment()
+  console.log(JSON.stringify(receipt))
+
+  // Notice: the deployment always returns 0x0925890E9aAbC1B410d4B3b407f875b9BFDfAfbc
+  // as the trader contract address, which is wrong!
+
+  // const tx = await trader.connect(deployer).setAdmin(deployer.address)
+  // await tx.wait(1)
+  // console.log({ setAdminTx: JSON.stringify(tx) })
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
-main().catch((error) => {
-  console.error(error)
-  process.exitCode = 1
-})
-
-// import { ethers } from "hardhat";
-
-// async function main() {
-//   const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-//   const unlockTime = currentTimestampInSeconds + 60;
-
-//   const lockedAmount = ethers.parseEther("0.001");
-
-//   const lock = await ethers.deployContract("Lock", [unlockTime], {
-//     value: lockedAmount,
-//   });
-
-//   await lock.waitForDeployment();
-
-//   console.log(
-//     `Lock with ${ethers.formatEther(
-//       lockedAmount
-//     )}ETH and unlock timestamp ${unlockTime} deployed to ${lock.target}`
-//   );
-// }
-
-// // We recommend this pattern to be able to use async/await everywhere
-// // and properly handle errors.
-// main().catch((error) => {
-//   console.error(error);
-//   process.exitCode = 1;
-// });
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error)
+    process.exitCode = 1
+  })
