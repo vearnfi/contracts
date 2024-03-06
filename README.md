@@ -41,11 +41,6 @@ npm run deploy:testnet
 npm run deploy:mainnet
 ```
 
-## Challenges
-
-1. How can we compute the transaction cost associated with the swap function within itself, in order to deduce this amount from the target account?
-2. How can we set a maximum withdraw amount to protect accounts with a large VTHO balance from a malicious actor triggering a swap on a low liquidity DEX and attempting a sandwich attack? Should we define a MAX_WITHDRAW_AMOUNT value multiplied by the base gas price, or calculate the DEX output and require the slippage to be below a certain threshold?
-
 ## Resources
 
 - [https://docs.vechain.org/core-concepts/transactions/transaction-calculation](https://docs.vechain.org/core-concepts/transactions/transaction-calculation)
