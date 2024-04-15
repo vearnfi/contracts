@@ -8,6 +8,8 @@
     "coverage": "npx hardhat coverage --testfiles 'test/*.ts' --network vechain_solo",
     "typechain": "npx hardhat typechain",
     "solhint": "npx solhint 'contracts/Trader.sol'",
+    "slither": "slither .",
+    "aderyn": "aderyn",
     "deploy:testnet": "npx hardhat run scripts/deploy.ts --network vechain_testnet",
     "deploy:mainnet": "npx hardhat run scripts/deploy.ts --network vechain_mainnet"
   },

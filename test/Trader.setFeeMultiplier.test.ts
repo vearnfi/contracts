@@ -27,6 +27,16 @@ describe('Trader.setFeeMultiplier', function () {
     expect(await trader.feeMultiplier()).to.equal(newFee)
   })
 
+  it('should emit an event when a new fee multiplier is set', async function () {
+    // Arrange
+    const { trader, owner } = await fixture()
+    const initialFee = await trader.feeMultiplier() // 30
+    const newFee = initialFee - BigInt(5)
+
+    // Act + assert
+    await expect(setFeeMultiplier(trader, owner, newFee)).to.emit(trader, 'SetFee').withArgs(newFee)
+  })
+
   it('should revert if called by any account other than the owner', async function () {
     // Arrange
     const { trader, admin, alice } = await fixture()

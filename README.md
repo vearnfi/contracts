@@ -19,6 +19,16 @@ Trader: 0x18558Ae54e703390C39F4Aa936659701D8da4B84
 7. The owner can adjust the fee charged by the protocol at any time using the setFeeMultiplier function. Allowed values range from 0 to 0.3%.
 8. The owner can withdraw accrued fees at any time using the withdrawFees method.
 
+## Roles
+
+1. Owner: Protocol owner, who has access to specific functions of the `Trader` contract such as setting fee multipliers, setting admin accounts and withdrawing fees.
+2. Admin: Admin of the `Trader` contract, responsible for executing the swap function.
+3. Subscriber: account allowing the `Trader` contract to periodically withdraw VTHO tokens from it and perform a swap for VET tokens.
+
+## Known issues
+
+- We lack some `zero-check` to save on gas.
+
 ## Getting started
 
 To get started, clone the repository and set environment variables based on the provided example:

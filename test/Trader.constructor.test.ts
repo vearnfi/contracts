@@ -15,7 +15,10 @@ describe('Trader.constructor', function () {
     const trader = await Trader.deploy(vvet9Addr, routersAddr as [Address, Address])
 
     // Assert
+    expect(await trader.FEE_PRECISION()).to.equal(10_000)
+    expect(await trader.MAX_FEE_MULTIPLIER()).to.equal(30)
     expect(await trader.vtho()).to.equal(energyAddr)
+    expect(await trader.vvet()).to.equal(vvet9Addr)
     for (let i = 0; i < SUPPORTED_DEXS_COUNT; i++) {
       expect(await trader.routers(i)).to.equal(routersAddr[i])
     }
@@ -23,7 +26,6 @@ describe('Trader.constructor', function () {
     expect(await trader.admin()).to.equal(ZeroAddress)
     expect(await trader.feeMultiplier()).to.equal(30)
     expect(await trader.baseGasPrice()).to.equal(BigInt(1e15))
-    expect(await trader.vvet()).to.equal(vvet9Addr)
   })
 
   it('should revert if routers address is not provided', async function () {

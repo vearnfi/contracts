@@ -14,6 +14,14 @@ describe('Trader.setAdmin', function () {
     expect(await trader.admin()).to.equal(bob.address)
   })
 
+  it('should emit an event when a new admin is set', async function () {
+    // Arrange
+    const { trader, owner, bob } = await fixture()
+
+    // Act + assert
+    await expect(setAdmin(trader, owner, bob.address)).to.emit(trader, 'SetAdmin').withArgs(bob.address)
+  })
+
   it('should revert if called by any account other than the owner', async function () {
     // Arrange
     const { trader, admin, alice, bob } = await fixture()
