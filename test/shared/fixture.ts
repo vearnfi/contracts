@@ -119,18 +119,17 @@ export async function fixture() {
 
   const SWAP_GAS = await trader.SWAP_GAS()
 
-  // Burn all VET from all test accounts in order to avoid changes
-  // in VTHO account balance
-  // for (const signer of [god, owner, admin, alice, bob]) {
-  //   const signerBalanceVET_0 = await provider.getBalance(signer.getAddress())
-  //   const tx = await signer.sendTransaction({
-  //     to: ZeroAddress,
-  //     value: signerBalanceVET_0,
-  //   })
-  //   await tx.wait()
-  //   const signerBalanceVET_1 = await provider.getBalance(signer.getAddress())
-  //   expect(signerBalanceVET_1).to.equal(0)
-  // }
+  // Burn all VET from all test accounts in order to avoid changes in VTHO balance
+  for (const signer of [owner, admin, alice, bob]) {
+    const signerBalanceVET_0 = await provider.getBalance(signer.getAddress())
+    const tx = await signer.sendTransaction({
+      to: ZeroAddress,
+      value: signerBalanceVET_0,
+    })
+    await tx.wait()
+    const signerBalanceVET_1 = await provider.getBalance(signer.getAddress())
+    expect(signerBalanceVET_1).to.equal(0)
+  }
 
   return {
     god,

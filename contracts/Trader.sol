@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.19;
+pragma solidity 0.8.19;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
@@ -15,10 +15,9 @@ import { IParams } from "./interfaces/IParams.sol";
  * block when held in an account or contract.
  *
  * @notice
- * 1. VeChain does not support custom errors, resulting in empty revert reasons.
- * Therefore, string errors are used for error handling.
- *
- * 2. VeChain lacks access to on-chain price oracles.
+ * 1. VeChain explorers don't yet support custom errors, reason for which we are still using string errors instead.
+ * 2. VeChain lacks access to on-chain price oracles, for this reason we make use of an off-chain price feed
+ * to mitigate the possibility of a sandwich attack.
  */
 contract Trader {
   /**
@@ -53,10 +52,20 @@ contract Trader {
   address[2] public routers;
 
   /**
+   * @dev Denominator used to calculate the fee applied by the protocol.
+   */
+  uint256 public constant FEE_PRECISION = 10_000;
+
+  /**
+   * @dev Maximum feeMultiplier allowed in the protocol.
+   */
+  uint256 public constant MAX_FEE_MULTIPLIER = 30;
+
+  /**
    * @dev Multiplier used to calculate protocol fees.
    * For example, a fee multiplier of 30 applies a 0.3% fee to the amount being swapped.
    */
-  uint8 public feeMultiplier = 30;
+  uint256 public feeMultiplier = MAX_FEE_MULTIPLIER;
 
   /**
    * @dev Base gas price fetched from the VeChain Params contract.
@@ -73,6 +82,26 @@ contract Trader {
    * @dev Mapping of account addresses to reserve balances.
    */
   mapping(address => uint256) public reserves;
+
+  /**
+   * @dev Emitted when fetching base gas price from the VeChain Params contract.
+   */
+  event FetchGas(uint256 baseGasPrice);
+
+  /**
+   * @dev Emitted when setting a new feeMultiplier.
+   */
+  event SetFee(uint256 feeMultiplier);
+
+  /**
+   * @dev Emitted when setting a new admin.
+   */
+  event SetAdmin(address indexed admin);
+
+  /**
+   * @dev Emitted when withdrawing fees.
+   */
+  event WithdrawFees(address indexed caller, uint256 amount);
 
   /**
    * @dev Emitted when an account sets a new swap configuration.
@@ -130,6 +159,8 @@ contract Trader {
   function fetchBaseGasPrice() public {
     baseGasPrice = params.get(0x000000000000000000000000000000000000626173652d6761732d7072696365);
     // ^ https://github.com/vechain/thor/blob/f77ab7f286d3b53da1b48c025afc633a7bd03561/thor/params.go#L44
+
+    emit FetchGas(baseGasPrice);
   }
 
   /**
@@ -150,9 +181,11 @@ contract Trader {
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
     // Ensures the protocol fee can never be higher than 0.3%.
-    require(newFeeMultiplier <= 30, "Trader: invalid fee multiplier");
+    require(newFeeMultiplier <= MAX_FEE_MULTIPLIER, "Trader: invalid fee multiplier");
 
     feeMultiplier = newFeeMultiplier;
+
+    emit SetFee(feeMultiplier);
   }
 
   /**
@@ -160,14 +193,19 @@ contract Trader {
    */
   function setAdmin(address newAdmin) external onlyOwner {
     admin = newAdmin;
+
+    emit SetAdmin(admin);
   }
 
   /**
    * @dev Withdraws accrued fees by the protocol.
-   * Use the `Transfer` event emitted by the Energy contract to track this tx.
    */
-  function withdrawFees() external onlyOwner {
-    vtho.transfer(owner, vtho.balanceOf(address(this)));
+  function withdrawFees() external {
+    uint256 fees = vtho.balanceOf(address(this));
+
+    require(vtho.transfer(owner, fees), "Trader: withdraw fees failed");
+
+    emit WithdrawFees(msg.sender, fees);
   }
 
   /**
@@ -194,7 +232,7 @@ contract Trader {
     uint256 txFee = SWAP_GAS * tx.gasprice;
 
     // Calculate protocolFee once txFee has been deduced.
-    uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / 10_000;
+    uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / FEE_PRECISION;
 
     // Substract fee and tx cost from the initial withdraw amount.
     // The remainder is sent to the DEX.
@@ -215,7 +253,7 @@ contract Trader {
 
     uint256[] memory amountsReceived = router.swapExactTokensForETH(
       amountIn,
-      amountOutExpected * 990 / 1000, // Accept a 1% slippage
+      amountOutExpected * 990 / 1_000, // Accept a 1% slippage
       path,
       account,
       block.timestamp // We can set this value when creating the tx
@@ -251,7 +289,7 @@ contract Trader {
   function _selectRouter(
     address[] memory path,
     uint256 amountIn
-  ) internal view returns(IUniswapV2Router02, uint256) {
+  ) internal view returns (IUniswapV2Router02, uint256) {
     uint256 routerIndex = 0;
     uint256 amountOut = 0;
 
