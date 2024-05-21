@@ -209,8 +209,19 @@ describe('Trader.swap', function () {
 
   it('should emit a Swap event upon successful exchange', async () => {
     // Arrange
-    const { energy, energyAddr, vvet9Addr, trader, traderAddr, baseGasPrice, routers, admin, alice, SWAP_GAS } =
-      await fixture()
+    const {
+      energy,
+      energyAddr,
+      vvet9Addr,
+      trader,
+      traderAddr,
+      baseGasPrice,
+      routers,
+      routersAddr,
+      admin,
+      alice,
+      SWAP_GAS,
+    } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
@@ -225,11 +236,16 @@ describe('Trader.swap', function () {
     const { txFee, protocolFee, amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
     const amountOut = await calcDexAmountOut(routers, energyAddr, vvet9Addr, amountIn)
 
+    function isValidRouter(router: string): boolean {
+      return routersAddr.includes(router)
+    }
+
     // Act + assert
     await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin))
       .to.emit(trader, 'Swap')
       .withArgs(
         alice.address,
+        isValidRouter,
         withdrawAmount,
         baseGasPrice,
         BigInt(30),

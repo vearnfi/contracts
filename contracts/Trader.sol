@@ -76,7 +76,7 @@ contract Trader {
    * @dev Estimated gas cost for executing the swap function with an upper bound
    * of 0xfffffffffffffffffff for the withdrawAmount parameter.
    */
-  uint256 public constant SWAP_GAS = 285_844;
+  uint256 public constant SWAP_GAS = 285_980;
 
   /**
    * @dev Mapping of account addresses to reserve balances.
@@ -116,6 +116,7 @@ contract Trader {
    */
   event Swap(
     address indexed account,
+    address indexed router,
     uint256 withdrawAmount,
     uint256 gasPrice,
     uint256 feeMultiplier,
@@ -198,7 +199,7 @@ contract Trader {
   }
 
   /**
-   * @dev Withdraws accrued fees by the protocol.
+   * @dev Withdraws fees accrued by the protocol.
    */
   function withdrawFees() external {
     uint256 fees = vtho.balanceOf(address(this));
@@ -261,6 +262,7 @@ contract Trader {
 
 		emit Swap(
       account,
+      address(router),
       withdrawAmount,
       tx.gasprice,
       feeMultiplier,
