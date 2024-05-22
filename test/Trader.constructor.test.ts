@@ -22,8 +22,8 @@ describe('Trader.constructor', function () {
     for (let i = 0; i < SUPPORTED_DEXS_COUNT; i++) {
       expect(await trader.routers(i)).to.equal(routersAddr[i])
     }
-    expect(await trader.owner()).to.equal(owner.address)
-    expect(await trader.admin()).to.equal(ZeroAddress)
+    expect(await trader.isOwner(owner.address)).to.equal(true)
+    // expect(await trader.isAdmin(ZeroAddress)).to.equal(ZeroAddress)
     expect(await trader.feeMultiplier()).to.equal(30)
     expect(await trader.baseGasPrice()).to.equal(BigInt(1e15))
   })

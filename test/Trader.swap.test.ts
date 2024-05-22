@@ -25,7 +25,6 @@ const testCases: SwapTestCase[] = [
 ]
 
 // TODO: test small withdrawAmount
-// TODO: should we use reentrancy since we are modifying the state of the VTHO token?
 describe('Trader.swap', function () {
   it('should exchange VTHO for VET when the method is called by the admin', async () => {
     // Arrange
@@ -289,7 +288,7 @@ describe('Trader.swap', function () {
     // Act + assert
     for (const signer of [owner, alice, bob]) {
       await expect(trader.connect(signer).swap(alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
-        'execution reverted: Trader: account is not admin'
+        'execution reverted: Roles: account is not admin'
       )
     }
   })

@@ -2,7 +2,7 @@ import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
 describe('Trader.fetchBaseGasPrice', function () {
-  it('should be possible for the anyone to call fetchBaseGasPrice', async function () {
+  it('should be possible for anyone to call fetchBaseGasPrice', async function () {
     // Arrange
     const { baseGasPrice, trader, alice } = await fixture()
 

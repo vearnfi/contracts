@@ -67,12 +67,10 @@ export async function fixture() {
   expect(await provider.getCode(traderAddr)).not.to.have.length(0)
 
   // Set Trader contract admin
-  expect(await trader.admin()).to.equal(ZeroAddress)
-
-  const tx0 = await trader.connect(owner).setAdmin(admin.address)
+  const tx0 = await trader.connect(owner).addAdmin(admin.address)
   await tx0.wait(1)
 
-  expect(await trader.admin()).to.equal(admin.address)
+  expect(await trader.isAdmin(admin.address)).to.equal(true)
 
   for (let i = 0; i < SUPPORTED_DEXS_COUNT; i++) {
     const factory = factories[i]

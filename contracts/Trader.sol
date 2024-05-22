@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: Unlicense
-pragma solidity 0.8.19;
+pragma solidity 0.8.20;
 
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
 import { IParams } from "./interfaces/IParams.sol";
+import { Roles } from "./Roles.sol";
 
 /**
- * @title Trader: Automatic VTHO to VET token swaps.
+ * @title Trader
  * @author Feder
+ * @notice Implements automatic VTHO to VET token swaps.
  * @dev This contract is designed to be deployed on VeChain, an EVM-compatible network with
  * a unique two-token model:
  * - VTHO: An ERC20 token used as gas.
  * - VET: The native token, which generates VTHO at a constant rate of 5*10^-8 VTHO per VET per
  * block when held in an account or contract.
- *
- * @notice
- * 1. VeChain explorers don't yet support custom errors, reason for which we are still using string errors instead.
- * 2. VeChain lacks access to on-chain price oracles, for this reason we make use of an off-chain price feed
+ * @dev VeChain lacks access to on-chain price oracle, for this reason we make use of an off-chain price feed
  * to mitigate the possibility of a sandwich attack.
  */
-contract Trader {
+contract Trader is Roles {
   /**
    * @dev Interface for interacting with the Energy (VTHO) contract.
    */
@@ -34,17 +33,6 @@ contract Trader {
    * @dev Address of the VVET contract (equivalent to WETH).
    */
   address public immutable vvet;
-
-  /**
-   * @dev Protocol owner, who has access to specific functions such as setting fee multipliers
-   * setting admin accounts and withdrawing fees.
-   */
-  address public immutable owner;
-
-  /**
-   * @dev Admin of the protocol, responsible for executing the swap function.
-   */
-  address public admin;
 
   /**
    * @dev List of addresses of UniswapV2 routers.
@@ -74,9 +62,9 @@ contract Trader {
 
   /**
    * @dev Estimated gas cost for executing the swap function with an upper bound
-   * of 0xfffffffffffffffffff for the withdrawAmount parameter.
+   * of 0xfffffffffffffffffff for the withdrawAmount parameter (~75_557 VTHO).
    */
-  uint256 public constant SWAP_GAS = 285_980;
+  uint256 public constant SWAP_GAS = 286_296;
 
   /**
    * @dev Mapping of account addresses to reserve balances.
@@ -92,11 +80,6 @@ contract Trader {
    * @dev Emitted when setting a new feeMultiplier.
    */
   event SetFee(uint256 feeMultiplier);
-
-  /**
-   * @dev Emitted when setting a new admin.
-   */
-  event SetAdmin(address indexed admin);
 
   /**
    * @dev Emitted when withdrawing fees.
@@ -128,34 +111,18 @@ contract Trader {
   );
 
   /**
-   * @dev Modifier to restrict function access to the owner.
+   * @dev Initialize the contract by setting the contract's owner, the address of the VVET contract,
+   * the list of available DEXs, and the current base gas price.
    */
-  modifier onlyOwner() {
-    require(msg.sender == owner, "Trader: account is not owner");
-    _;
-  }
-
-  /**
-   * @dev Modifier to restrict function access to the admin.
-   */
-  modifier onlyAdmin() {
-    require(msg.sender == admin, "Trader: account is not admin");
-    _;
-  }
-
-  /**
-   * @dev Initializes the contract by setting the list of available DEXs
-   * and the contract owner.
-   */
-  constructor(address vvet_, address[2] memory routers_) {
+  constructor(address vvet_, address[2] memory routers_) Roles(msg.sender) {
     vvet = vvet_;
     routers = routers_;
-    owner = msg.sender;
     fetchBaseGasPrice();
   }
 
   /**
-   * @dev Fetches and stores the base gas price from the VeChain Params contract.
+   * @dev Fetche and store the base gas price from the VeChain Params contract.
+   * Anybody should be able to call this function.
    */
   function fetchBaseGasPrice() public {
     baseGasPrice = params.get(0x000000000000000000000000000000000000626173652d6761732d7072696365);
@@ -165,9 +132,9 @@ contract Trader {
   }
 
   /**
-   * @dev Associates a reserve balance with the caller's account.
-   * Enforce reserveBalance to be non zero so that when the `swap`
-   * method gets called we can verify that the config has been initilized.
+   * @dev Associate a reserve balance with the caller's account.
+   * Enforce reserveBalance to be non zero so that, when the `swap`
+   * method gets called, we can verify that the config has been initilized.
    */
   function saveConfig(uint256 reserveBalance) external {
     require(reserveBalance > 0, "Trader: invalid reserve");
@@ -178,7 +145,7 @@ contract Trader {
   }
 
   /**
-   * @dev Sets a new protocol fee multiplier.
+   * @dev Set a new protocol fee multiplier. Restricted to owners.
    */
   function setFeeMultiplier(uint8 newFeeMultiplier) external onlyOwner {
     // Ensures the protocol fee can never be higher than 0.3%.
@@ -190,38 +157,35 @@ contract Trader {
   }
 
   /**
-   * @dev Sets a new admin account.
+   * @dev Withdraw fees accrued by the protocol. Restricted to owners.
    */
-  function setAdmin(address newAdmin) external onlyOwner {
-    admin = newAdmin;
-
-    emit SetAdmin(admin);
-  }
-
-  /**
-   * @dev Withdraws fees accrued by the protocol.
-   */
-  function withdrawFees() external {
+  function withdrawFees() external onlyOwner {
     uint256 fees = vtho.balanceOf(address(this));
 
-    require(vtho.transfer(owner, fees), "Trader: withdraw fees failed");
+    require(vtho.transfer(msg.sender, fees), "Trader: withdraw fees failed");
 
     emit WithdrawFees(msg.sender, fees);
   }
 
   /**
-   * @dev Withdraw VTHO from the target account, deduce tx and protocol fees,
-   * perform a swap for VET tokens through a DEX, and return the resulting tokens back
-   * to the original account.
+   * @dev Execute a swap. Restricted to admins.
+   * 1. Withdraw VTHO from the target account;
+   * 2. Deduce tx and protocol fees;
+   * 3. Perform a swap for VET tokens through a DEX;
+   * 4. Return the resulting VET tokens back to the original account.
    *
-   * The Trader contract must be given approval for VTHO token spending in behalf of the
-   * target account priot to calling this function.
+   * @dev The Trader contract must be given approval for VTHO token spending in behalf of the
+   * target account prior to calling this function.
    *
    * @param account Account owning the VTHO tokens.
-   * @param withdrawAmount Amount of VTHO to be withdrawn from the account.
+   * @param withdrawAmount Amount of VTHO to be withdrawn from the target account.
    * @param amountOutMin Minimum output amount computed using an off-chain price oracle.
    */
-	function swap(address payable account, uint256 withdrawAmount, uint256 amountOutMin) external onlyAdmin {
+  function swap(
+    address payable account,
+    uint256 withdrawAmount,
+    uint256 amountOutMin
+  ) external onlyAdmin {
     require(tx.gasprice <= 2 * baseGasPrice, "Trader: gas price too high");
 
     _validateWithdrawAmount(account, withdrawAmount);
@@ -275,7 +239,7 @@ contract Trader {
   }
 
   /**
-   * @dev Validates the withdrawal amount against the reserve balance.
+   * @dev Validate the withdrawal amount against the current account balance and reserve balance.
    */
   function _validateWithdrawAmount(address account, uint256 withdrawAmount) internal view {
     uint256 reserveBalance = reserves[account];
@@ -286,7 +250,7 @@ contract Trader {
   }
 
   /**
-   * @dev Selects the router that yields the best output from the list of available routers.
+   * @dev Select the router that yields the best output from the list of available routers.
    */
   function _selectRouter(
     address[] memory path,

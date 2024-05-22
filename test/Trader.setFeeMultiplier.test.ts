@@ -45,7 +45,7 @@ describe('Trader.setFeeMultiplier', function () {
     const newFee = BigInt(25)
     for (const signer of [alice, admin]) {
       await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.rejectedWith(
-        'execution reverted: Trader: account is not owner'
+        'execution reverted: Roles: account is not owner'
       )
     }
   })
