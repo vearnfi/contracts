@@ -41,9 +41,8 @@ async function main() {
   // Notice: the deployment always returns 0x0925890E9aAbC1B410d4B3b407f875b9BFDfAfbc
   // as the trader contract address, which is wrong!
 
-  // const tx = await trader.connect(deployer).setAdmin(deployer.address)
+  // const tx = await trader.connect(deployer).addKeeper(deployer.address)
   // await tx.wait(1)
-  // console.log({ setAdminTx: JSON.stringify(tx) })
 }
 
 // We recommend this pattern to be able to use async/await everywhere

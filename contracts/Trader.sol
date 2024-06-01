@@ -10,13 +10,14 @@ import { Roles } from "./Roles.sol";
  * @title Trader
  * @author Feder
  * @notice Implements automatic VTHO to VET token swaps.
- * @dev This contract is designed to be deployed on VeChain, an EVM-compatible network with
- * a unique two-token model:
+ * @dev This contract is designed to be deployed on VeChain, an EVM-compatible network which
+ * operates on a dual-token model, comprising VET and VTHO:
  * - VTHO: An ERC20 token used as gas.
  * - VET: The native token, which generates VTHO at a constant rate of 5*10^-8 VTHO per VET per
  * block when held in an account or contract.
- * @dev VeChain lacks access to on-chain price oracle, for this reason we make use of an off-chain price feed
- * to mitigate the possibility of a sandwich attack.
+ *
+ * NOTICE: VeChain lacks access to on-chain price oracles. For this reason we make use of an
+ * off-chain price feed to mitigate the possibility of a sandwich attack.
  */
 contract Trader is Roles {
   /**
@@ -61,13 +62,13 @@ contract Trader is Roles {
   uint256 public baseGasPrice;
 
   /**
-   * @dev Estimated gas cost for executing the swap function with an upper bound
+   * @dev Estimated gas cost for executing a swap operation with an upper bound
    * of 0xfffffffffffffffffff for the withdrawAmount parameter (~75_557 VTHO).
    */
   uint256 public constant SWAP_GAS = 286_296;
 
   /**
-   * @dev Mapping of account addresses to reserve balances.
+   * @dev Mapping of accounts to reserve balances.
    */
   mapping(address => uint256) public reserves;
 
@@ -89,10 +90,7 @@ contract Trader is Roles {
   /**
    * @dev Emitted when an account sets a new swap configuration.
    */
-  event Config(
-    address indexed account,
-    uint256 reserveBalance
-  );
+  event Config(address indexed account, uint256 reserveBalance);
 
   /**
    * @dev Emitted when a swap operation is completed.
@@ -121,7 +119,7 @@ contract Trader is Roles {
   }
 
   /**
-   * @dev Fetche and store the base gas price from the VeChain Params contract.
+   * @dev Fetch and store the base gas price from the VeChain Params contract.
    * Anybody should be able to call this function.
    */
   function fetchBaseGasPrice() public {
@@ -168,14 +166,14 @@ contract Trader is Roles {
   }
 
   /**
-   * @dev Execute a swap. Restricted to admins.
+   * @dev Execute a swap. Restricted to keepers.
    * 1. Withdraw VTHO from the target account;
    * 2. Deduce tx and protocol fees;
    * 3. Perform a swap for VET tokens through a DEX;
    * 4. Return the resulting VET tokens back to the original account.
    *
-   * @dev The Trader contract must be given approval for VTHO token spending in behalf of the
-   * target account prior to calling this function.
+   * NOTICE: The Trader contract must be given approval for VTHO token spending in behalf
+   * of the target account prior to calling this function.
    *
    * @param account Account owning the VTHO tokens.
    * @param withdrawAmount Amount of VTHO to be withdrawn from the target account.
@@ -185,8 +183,8 @@ contract Trader is Roles {
     address payable account,
     uint256 withdrawAmount,
     uint256 amountOutMin
-  ) external onlyAdmin {
-    require(tx.gasprice <= 2 * baseGasPrice, "Trader: gas price too high");
+  ) external onlyKeeper {
+    // require(tx.gasprice <= 2 * baseGasPrice, "Trader: gas price too high");
 
     _validateWithdrawAmount(account, withdrawAmount);
 

@@ -1,4 +1,4 @@
-import { Trader } from '../../typechain-types'
+import { Trader } from '../../../typechain-types'
 
 type Output = {
   txFee: bigint

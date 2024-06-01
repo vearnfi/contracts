@@ -1,6 +1,6 @@
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
-import { setAdmin } from './shared/set-admin'
+import { addKeeper } from './shared/set-admin'
 
 describe('Trader.setAdmin', function () {
   it('should set a new admin if called by the owner', async function () {
@@ -8,7 +8,7 @@ describe('Trader.setAdmin', function () {
     const { trader, owner, bob } = await fixture()
 
     // Act
-    await setAdmin(trader, owner, bob.address)
+    await addKeeper(trader, owner, bob.address)
 
     // Assert
     expect(await trader.admin()).to.equal(bob.address)
@@ -19,12 +19,12 @@ describe('Trader.setAdmin', function () {
     const { trader, owner, bob } = await fixture()
 
     // Act + assert
-    await expect(setAdmin(trader, owner, bob.address)).to.emit(trader, 'SetAdmin').withArgs(bob.address)
+    await expect(addKeeper(trader, owner, bob.address)).to.emit(trader, 'SetAdmin').withArgs(bob.address)
   })
 
   it('should revert if called by any account other than the owner', async function () {
     // Arrange
-    const { trader, admin, alice, bob } = await fixture()
+    const { trader, keeper: admin, alice, bob } = await fixture()
 
     // Act + assert
     for (const signer of [alice, admin]) {

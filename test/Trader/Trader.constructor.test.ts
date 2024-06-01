@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
-import { SUPPORTED_DEXS_COUNT } from '../constants'
+import { SUPPORTED_DEXS_COUNT } from '../../constants'
 
 const { getContractFactory, ZeroAddress } = ethers
 
@@ -23,7 +23,7 @@ describe('Trader.constructor', function () {
       expect(await trader.routers(i)).to.equal(routersAddr[i])
     }
     expect(await trader.isOwner(owner.address)).to.equal(true)
-    // expect(await trader.isAdmin(ZeroAddress)).to.equal(ZeroAddress)
+    // expect(await trader.isKeeper(ZeroAddress)).to.equal(ZeroAddress)
     expect(await trader.feeMultiplier()).to.equal(30)
     expect(await trader.baseGasPrice()).to.equal(BigInt(1e15))
   })

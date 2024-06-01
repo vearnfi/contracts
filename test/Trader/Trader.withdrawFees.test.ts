@@ -25,24 +25,16 @@ describe('Trader.withdrawFees', function () {
     )
   })
 
-  it('should be possible for anybody to call withdrawFees to transfer the fees to the owner', async function () {
+  it('should revert if called by an account other than the owner', async function () {
     // Arrange
-    const { energy, trader, traderAddr, owner, alice } = await fixture()
+    const { trader, alice, keeper } = await fixture()
 
-    const ownerBalanceVTHO_0 = await energy.balanceOf(owner.address)
-
-    // Transfer some VTHO to the Trader contract
-    const deposit = expandTo18Decimals(5)
-    const tx1 = await energy.connect(alice).transfer(traderAddr, deposit)
-    await tx1.wait(1)
-
-    // Act
-    const tx2 = await trader.connect(alice).withdrawFees()
-    await tx2.wait(1)
-
-    // Assert
-    expect(await energy.balanceOf(traderAddr)).to.equal(0)
-    expect(await energy.balanceOf(owner.address)).to.equal(ownerBalanceVTHO_0 + deposit)
+    // Act + assert
+    for (const signer of [alice, keeper]) {
+      await expect(trader.connect(signer).withdrawFees()).to.be.rejectedWith(
+        'execution reverted: Roles: account is not owner'
+      )
+    }
   })
 
   it('should emit an event on withdrawal', async function () {
@@ -55,6 +47,6 @@ describe('Trader.withdrawFees', function () {
     await tx1.wait(1)
 
     // Act + assert
-    await expect(trader.connect(alice).withdrawFees()).to.emit(trader, 'WithdrawFees').withArgs(alice.address, deposit)
+    await expect(trader.connect(owner).withdrawFees()).to.emit(trader, 'WithdrawFees').withArgs(owner.address, deposit)
   })
 })

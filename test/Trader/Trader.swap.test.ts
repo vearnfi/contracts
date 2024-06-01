@@ -26,9 +26,9 @@ const testCases: SwapTestCase[] = [
 
 // TODO: test small withdrawAmount
 describe('Trader.swap', function () {
-  it('should exchange VTHO for VET when the method is called by the admin', async () => {
+  it('should exchange VTHO for VET when the method is called by the keeper', async () => {
     // Arrange
-    const { energy, energyAddr, vvet9Addr, baseGasPrice, trader, traderAddr, SWAP_GAS, routers, admin, alice } =
+    const { energy, energyAddr, vvet9Addr, baseGasPrice, trader, traderAddr, SWAP_GAS, routers, keeper, alice } =
       await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
@@ -45,7 +45,7 @@ describe('Trader.swap', function () {
     const aliceBalanceVTHO_0 = await energy.balanceOf(alice.address)
 
     // Act
-    await swap(trader, admin, alice.address, withdrawAmount, amountOutMin)
+    await swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)
 
     // Assert
     const aliceBalanceVTHO_1 = await energy.balanceOf(alice.address)
@@ -59,7 +59,7 @@ describe('Trader.swap', function () {
   // with a positive number of arguments: contract.foo(arg1, arg2, {gasPrice})
   it.skip('should revert if tx gas price exceeds twice the base gas price', async () => {
     // Arrange
-    const { baseGasPrice, trader, admin, alice } = await fixture()
+    const { baseGasPrice, trader, keeper, alice } = await fixture()
 
     const withdrawAmount = expandTo18Decimals(500)
     const amountOutMin = BigInt(100)
@@ -67,13 +67,13 @@ describe('Trader.swap', function () {
 
     // Act + assert
     await expect(
-      trader.connect(admin).swap(alice.address, withdrawAmount, amountOutMin, { gasPrice })
+      trader.connect(keeper).swap(alice.address, withdrawAmount, amountOutMin, { gasPrice })
     ).to.be.rejectedWith('execution reverted: Trader: gas price too high')
   })
 
   it('should swap if the target account is a contract WITH a payable fallback function', async () => {
     // Arrange
-    const { energy, trader, traderAddr, admin, alice } = await fixture()
+    const { energy, trader, traderAddr, keeper, alice } = await fixture()
 
     const WithFallback = await getContractFactory('WithFallback', alice)
     const withFallback = await WithFallback.deploy(traderAddr)
@@ -94,7 +94,7 @@ describe('Trader.swap', function () {
     await tx3.wait(1)
 
     // Act
-    await swap(trader, admin, withFallbackAddr, withdrawAmount, amountOutMin)
+    await swap(trader, keeper, withFallbackAddr, withdrawAmount, amountOutMin)
 
     // Assert
     expect(await provider.getBalance(withFallbackAddr)).to.be.gt(0)
@@ -102,7 +102,7 @@ describe('Trader.swap', function () {
 
   it('should revert if the target account is a contract WITHOUT a payable fallback function', async () => {
     // Arrange
-    const { energy, trader, traderAddr, admin, alice } = await fixture()
+    const { energy, trader, traderAddr, keeper, alice } = await fixture()
 
     const NoFallback = await getContractFactory('NoFallback', alice)
     const noFallback = await NoFallback.deploy(traderAddr)
@@ -123,7 +123,7 @@ describe('Trader.swap', function () {
     await tx3.wait(1)
 
     // Act + assert
-    await expect(trader.connect(admin).swap(noFallbackAddr, withdrawAmount, amountOutMin)).to.be.rejectedWith(
+    await expect(trader.connect(keeper).swap(noFallbackAddr, withdrawAmount, amountOutMin)).to.be.rejectedWith(
       'execution reverted: TransferHelper::safeTransferETH: ETH transfer failed'
     )
   })
@@ -131,7 +131,7 @@ describe('Trader.swap', function () {
   // For some reason we cannot match the error message on the expect statement
   it('should revert if amountOutMin is larger than the amountOut yielded by the DEX', async () => {
     // Arrange
-    const { energy, energyAddr, vvet9Addr, trader, traderAddr, baseGasPrice, routers, admin, alice, SWAP_GAS } =
+    const { energy, energyAddr, vvet9Addr, trader, traderAddr, baseGasPrice, routers, keeper, alice, SWAP_GAS } =
       await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
@@ -149,12 +149,12 @@ describe('Trader.swap', function () {
     const amountOutMin = amountOut + BigInt(1)
 
     // Act + assert
-    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejected
+    await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)).to.be.rejected
   })
 
   it('should revert if account does not set a reserve balance', async () => {
     // Arrange
-    const { energy, trader, traderAddr, admin, alice } = await fixture()
+    const { energy, trader, traderAddr, keeper, alice } = await fixture()
 
     const withdrawAmount = expandTo18Decimals(500)
     const amountOutMin = BigInt(100)
@@ -163,14 +163,14 @@ describe('Trader.swap', function () {
     await approveEnergy(energy, alice, traderAddr, MaxUint256)
 
     // Act + assert
-    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
+    await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
       'Trader: reserve not initialized'
     )
   })
 
   it('should revert if account does not approve energy', async () => {
     // Arrange
-    const { trader, admin, alice } = await fixture()
+    const { trader, keeper, alice } = await fixture()
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
@@ -180,14 +180,14 @@ describe('Trader.swap', function () {
     await saveConfig(trader, alice, reserveBalance)
 
     // Act + assert
-    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
+    await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
       'execution reverted: builtin: insufficient allowance'
     )
   })
 
   it('should revert if withdrawAmount >= balance - reserveBalance', async () => {
     // Arrange
-    const { energy, trader, traderAddr, admin, alice } = await fixture()
+    const { energy, trader, traderAddr, keeper, alice } = await fixture()
 
     const aliceBalanceVTHO_0 = await energy.balanceOf(alice.address)
 
@@ -201,7 +201,7 @@ describe('Trader.swap', function () {
     // Act + assert
     for (let k of [0, 1]) {
       await expect(
-        trader.connect(admin).swap(alice.address, withdrawAmount + BigInt(k), amountOutMin)
+        trader.connect(keeper).swap(alice.address, withdrawAmount + BigInt(k), amountOutMin)
       ).to.be.rejectedWith('execution reverted: Trader: insufficient balance')
     }
   })
@@ -217,7 +217,7 @@ describe('Trader.swap', function () {
       baseGasPrice,
       routers,
       routersAddr,
-      admin,
+      keeper,
       alice,
       SWAP_GAS,
     } = await fixture()
@@ -240,7 +240,7 @@ describe('Trader.swap', function () {
     }
 
     // Act + assert
-    await expect(swap(trader, admin, alice.address, withdrawAmount, amountOutMin))
+    await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin))
       .to.emit(trader, 'Swap')
       .withArgs(
         alice.address,
@@ -259,7 +259,7 @@ describe('Trader.swap', function () {
   testCases.forEach(({ reserveBalance, withdrawAmount }) => {
     it('should spend no more than SWAP_GAS estimate', async () => {
       // Arrange
-      const { energy, trader, traderAddr, admin, alice, SWAP_GAS } = await fixture()
+      const { energy, trader, traderAddr, keeper, alice, SWAP_GAS } = await fixture()
 
       const amountOutMin = BigInt(100)
 
@@ -267,14 +267,14 @@ describe('Trader.swap', function () {
       await approveEnergy(energy, alice, traderAddr, MaxUint256)
 
       // Act
-      const swapReceipt = await swap(trader, admin, alice.address, withdrawAmount, amountOutMin)
+      const swapReceipt = await swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)
 
       // Assert
       expect(swapReceipt?.gasUsed).to.be.lte(SWAP_GAS)
     })
   })
 
-  it('should revert if called by any account other than the admin', async () => {
+  it('should revert if called by any account other than the keeper', async () => {
     // Arrange
     const { energy, trader, traderAddr, owner, alice, bob } = await fixture()
 
@@ -288,7 +288,7 @@ describe('Trader.swap', function () {
     // Act + assert
     for (const signer of [owner, alice, bob]) {
       await expect(trader.connect(signer).swap(alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
-        'execution reverted: Roles: account is not admin'
+        'execution reverted: Roles: account is not keeper'
       )
     }
   })

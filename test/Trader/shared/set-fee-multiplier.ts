@@ -1,5 +1,5 @@
 import type { Signer, ContractTransactionReceipt } from 'ethers'
-import { Trader } from '../../typechain-types'
+import { Trader } from '../../../typechain-types'
 
 export async function setFeeMultiplier(
   trader: Trader,

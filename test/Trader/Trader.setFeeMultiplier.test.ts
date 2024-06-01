@@ -39,11 +39,11 @@ describe('Trader.setFeeMultiplier', function () {
 
   it('should revert if called by any account other than the owner', async function () {
     // Arrange
-    const { trader, admin, alice } = await fixture()
+    const { trader, keeper, alice } = await fixture()
 
     // Act + assert
     const newFee = BigInt(25)
-    for (const signer of [alice, admin]) {
+    for (const signer of [alice, keeper]) {
       await expect(trader.connect(signer).setFeeMultiplier(newFee)).to.be.rejectedWith(
         'execution reverted: Roles: account is not owner'
       )
