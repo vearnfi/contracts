@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
-describe.only('Roles.renounceOwner', function () {
+describe('Roles.renounceOwner', function () {
   it('should be possible for an owner to renounce', async function () {
     // Arrange
     const { roles, owner } = await fixture()
