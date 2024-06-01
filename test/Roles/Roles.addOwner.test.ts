@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
-describe.only('Roles.addOwner', function () {
+describe('Roles.addOwner', function () {
   it('should be possible for an owner to add another owner', async function () {
     // Arrange
     const { roles, owner, alice } = await fixture()
