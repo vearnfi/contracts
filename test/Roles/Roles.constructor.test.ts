@@ -3,7 +3,7 @@ import { expect } from 'chai'
 
 const { getSigners, getContractFactory } = ethers
 
-describe.only('Roles.constructor', function () {
+describe('Roles.constructor', function () {
   it('should grant the given address the owner role', async function () {
     // Arrange
     const [god, owner] = await getSigners()
