@@ -2,8 +2,8 @@ import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
-describe.only('Roles.removeKeeper', function () {
-  it('should be possible for an owner to remove a keeper', async function () {
+describe('Roles.removeKeeper', function () {
+  it('should remove a keeper if called by an owner', async function () {
     // Arrange
     const { roles, owner, keeper } = await fixture()
 
@@ -15,7 +15,7 @@ describe.only('Roles.removeKeeper', function () {
     expect(await roles.isKeeper(keeper.address)).to.equal(false)
   })
 
-  it('should NOT be possible for a non owner to remove a keeper', async function () {
+  it('should revert if called by any account other than an owner', async function () {
     // Arrange
     const { roles, god, keeper, alice, bob } = await fixture()
 

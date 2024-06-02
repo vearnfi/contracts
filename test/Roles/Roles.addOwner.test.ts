@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
 describe('Roles.addOwner', function () {
-  it('should be possible for an owner to add another owner', async function () {
+  it('should add an owner if called by an owner', async function () {
     // Arrange
     const { roles, owner, alice } = await fixture()
 
@@ -15,7 +15,7 @@ describe('Roles.addOwner', function () {
     expect(await roles.isOwner(alice.address)).to.equal(true)
   })
 
-  it('should NOT be possible for a non owner to add a new owner', async function () {
+  it('should revert if called by any account other than an owner', async function () {
     // Arrange
     const { roles, god, keeper, alice, bob } = await fixture()
 

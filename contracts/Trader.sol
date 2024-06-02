@@ -197,7 +197,7 @@ contract Trader is Roles {
     // Calculate protocolFee once txFee has been deduced.
     uint256 protocolFee = (withdrawAmount - txFee) * feeMultiplier / FEE_PRECISION;
 
-    // Substract fee and tx cost from the initial withdraw amount.
+    // Substract fees and tx cost from the initial withdraw amount.
     // The remainder is sent to the DEX.
     // Notice: This could potentially throw if fees > withdrawAmount.
     uint256 amountIn = withdrawAmount - txFee - protocolFee;

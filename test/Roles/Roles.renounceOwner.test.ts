@@ -3,7 +3,7 @@ import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
 describe('Roles.renounceOwner', function () {
-  it('should be possible for an owner to renounce', async function () {
+  it('should renounce if called by an owner', async function () {
     // Arrange
     const { roles, owner } = await fixture()
 
@@ -15,7 +15,7 @@ describe('Roles.renounceOwner', function () {
     expect(await roles.isOwner(owner.address)).to.equal(false)
   })
 
-  it('should NOT be possible for an owner to renounce another owner', async function () {
+  it('should revert if attempting to renounce another owner', async function () {
     // Arrange
     const { roles, owner, alice } = await fixture()
 
@@ -27,7 +27,7 @@ describe('Roles.renounceOwner', function () {
     await expect(roles.connect(owner).renounceOwner(alice.address)).to.be.rejectedWith('execution reverted')
   })
 
-  it('should NOT be possible for an owner to add another owner after renouncing', async function () {
+  it('should revert if trying to add an owner after renouncing', async function () {
     // Arrange
     const { roles, god, owner, keeper, alice, bob } = await fixture()
 
@@ -41,7 +41,7 @@ describe('Roles.renounceOwner', function () {
     }
   })
 
-  it('should NOT be possible for an owner to add a keeper after renouncing', async function () {
+  it('should revert if trying to add a keeper after renouncing', async function () {
     // Arrange
     const { roles, god, owner, keeper, alice, bob } = await fixture()
 
