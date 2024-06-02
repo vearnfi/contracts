@@ -24,4 +24,14 @@ describe('Roles.removeKeeper', function () {
       await expect(roles.connect(signer).removeKeeper(keeper.address)).to.be.rejectedWith('execution reverted')
     }
   })
+
+  it('should emit a RoleRevoked event', async function () {
+    // Arrange
+    const { KEEPER_ROLE, roles, owner, keeper } = await fixture()
+
+    // Act + assert
+    await expect(roles.connect(owner).removeKeeper(keeper.address))
+      .to.emit(roles, 'RoleRevoked')
+      .withArgs(KEEPER_ROLE, keeper.address, owner.address)
+  })
 })

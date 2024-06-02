@@ -24,6 +24,14 @@ describe('Roles.addKeeper', function () {
       await expect(roles.connect(signer).addKeeper(bob.address)).to.be.rejectedWith('execution reverted')
     }
   })
-})
 
-// TODO: emit event
+  it('should emit a RoleGranted event', async function () {
+    // Arrange
+    const { KEEPER_ROLE, roles, god, owner, keeper, alice, bob } = await fixture()
+
+    // Act + assert
+    await expect(roles.connect(owner).addKeeper(alice.address))
+      .to.emit(roles, 'RoleGranted')
+      .withArgs(KEEPER_ROLE, alice.address, owner.address)
+  })
+})

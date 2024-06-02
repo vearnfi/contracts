@@ -54,4 +54,14 @@ describe('Roles.renounceOwner', function () {
       await expect(roles.connect(owner).addKeeper(signer.address)).to.be.rejectedWith('execution reverted')
     }
   })
+
+  it('should emit a RoleRevoked event', async function () {
+    // Arrange
+    const { DEFAULT_ADMIN_ROLE, roles, owner } = await fixture()
+
+    // Act + assert
+    await expect(roles.connect(owner).renounceOwner(owner.address))
+      .to.emit(roles, 'RoleRevoked')
+      .withArgs(DEFAULT_ADMIN_ROLE, owner.address, owner.address)
+  })
 })

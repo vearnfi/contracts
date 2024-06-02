@@ -24,4 +24,14 @@ describe('Roles.addOwner', function () {
       await expect(roles.connect(signer).addOwner(bob.address)).to.be.rejectedWith('execution reverted')
     }
   })
+
+  it('should emit a RoleGranted event', async function () {
+    // Arrange
+    const { DEFAULT_ADMIN_ROLE, roles, owner, bob } = await fixture()
+
+    // Act + assert
+    await expect(roles.connect(owner).addOwner(bob.address))
+      .to.emit(roles, 'RoleGranted')
+      .withArgs(DEFAULT_ADMIN_ROLE, bob.address, owner.address)
+  })
 })
