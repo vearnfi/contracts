@@ -10,7 +10,7 @@
     "solhint": "npx solhint 'contracts/Trader.sol'",
     "slither": "slither .",
     "aderyn": "aderyn",
-    "deploy:testnet": "npx hardhat run scripts/deploy.ts --network vechain_testnet",
+    "deploy:testnet": "npx hardhat run scripts/deploy-testnet.ts --network vechain_testnet",
     "deploy:mainnet": "npx hardhat run scripts/deploy.ts --network vechain_mainnet"
   },
   "keywords": [],
