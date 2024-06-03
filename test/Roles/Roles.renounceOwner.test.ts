@@ -1,4 +1,3 @@
-import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 

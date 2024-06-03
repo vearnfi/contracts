@@ -1,4 +1,3 @@
-import { ethers } from 'hardhat'
 import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 
@@ -27,7 +26,7 @@ describe('Roles.addKeeper', function () {
 
   it('should emit a RoleGranted event', async function () {
     // Arrange
-    const { KEEPER_ROLE, roles, god, owner, keeper, alice, bob } = await fixture()
+    const { KEEPER_ROLE, roles, owner, alice } = await fixture()
 
     // Act + assert
     await expect(roles.connect(owner).addKeeper(alice.address))
