@@ -65,7 +65,7 @@ contract Trader is Roles {
    * @dev Estimated gas cost for executing a swap operation with an upper bound
    * of 0xfffffffffffffffffff for the withdrawAmount parameter (~75_557 VTHO).
    */
-  uint256 public constant SWAP_GAS = 286_296;
+  uint256 public constant SWAP_GAS = 285_819;
 
   /**
    * @dev Mapping of accounts to reserve balances.
@@ -184,8 +184,6 @@ contract Trader is Roles {
     uint256 withdrawAmount,
     uint256 amountOutMin
   ) external onlyKeeper {
-    // require(tx.gasprice <= 2 * baseGasPrice, "Trader: gas price too high");
-
     _validateWithdrawAmount(account, withdrawAmount);
 
     // Transfer the specified amount of VTHO to this contract.
