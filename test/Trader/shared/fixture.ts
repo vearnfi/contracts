@@ -1,11 +1,11 @@
 import { ethers } from 'hardhat'
 import type { AddressLike } from 'ethers'
 import { expect } from 'chai'
-import { ENERGY_CONTRACT_ADDRESS, PARAMS_CONTRACT_ADDRESS, SUPPORTED_DEXS_COUNT } from '../../constants'
-import { Energy, Params, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../typechain-types'
-import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
-import * as paramsArtifact from '../../artifacts/contracts/vechain/Params.sol/Params.json'
-import * as pairArtifact from '../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
+import { ENERGY_CONTRACT_ADDRESS, PARAMS_CONTRACT_ADDRESS, SUPPORTED_DEXS_COUNT } from '../../../constants'
+import { Energy, Params, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../../typechain-types'
+import * as energyArtifact from '../../../artifacts/contracts/vechain/Energy.sol/Energy.json'
+import * as paramsArtifact from '../../../artifacts/contracts/vechain/Params.sol/Params.json'
+import * as pairArtifact from '../../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import { expandTo18Decimals } from './expand-to-18-decimals'
 import { approveEnergy } from './approve-energy'
 
@@ -13,7 +13,7 @@ const { getSigners, getContractFactory, Contract, ZeroAddress, MaxUint256, provi
 
 export async function fixture() {
   // NOTE: these account run out of gas the more we run tests! Fix!
-  const [god, owner, admin, alice, bob] = await getSigners()
+  const [god, owner, keeper, alice, bob] = await getSigners()
 
   const energy = new Contract(ENERGY_CONTRACT_ADDRESS, energyArtifact.abi, god) as unknown as Energy
   const energyAddr = await energy.getAddress()
@@ -66,13 +66,11 @@ export async function fixture() {
 
   expect(await provider.getCode(traderAddr)).not.to.have.length(0)
 
-  // Set Trader contract admin
-  expect(await trader.admin()).to.equal(ZeroAddress)
-
-  const tx0 = await trader.connect(owner).setAdmin(admin.address)
+  // Set Trader contract keeper
+  const tx0 = await trader.connect(owner).addKeeper(keeper.address)
   await tx0.wait(1)
 
-  expect(await trader.admin()).to.equal(admin.address)
+  expect(await trader.isKeeper(keeper.address)).to.equal(true)
 
   for (let i = 0; i < SUPPORTED_DEXS_COUNT; i++) {
     const factory = factories[i]
@@ -120,7 +118,7 @@ export async function fixture() {
   const SWAP_GAS = await trader.SWAP_GAS()
 
   // Burn all VET from all test accounts in order to avoid changes in VTHO balance
-  for (const signer of [owner, admin, alice, bob]) {
+  for (const signer of [owner, keeper, alice, bob]) {
     const signerBalanceVET_0 = await provider.getBalance(signer.getAddress())
     const tx = await signer.sendTransaction({
       to: ZeroAddress,
@@ -134,7 +132,7 @@ export async function fixture() {
   return {
     god,
     owner,
-    admin,
+    keeper,
     alice,
     bob,
     energy,

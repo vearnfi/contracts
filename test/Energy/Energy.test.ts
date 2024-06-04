@@ -1,8 +1,8 @@
 import { ethers } from 'hardhat'
 import { expect } from 'chai'
-import { Energy } from '../typechain-types'
-import * as energyArtifact from '../artifacts/contracts/vechain/Energy.sol/Energy.json'
-import { ENERGY_CONTRACT_ADDRESS } from '../constants'
+import { Energy } from '../../typechain-types'
+import * as energyArtifact from '../../artifacts/contracts/vechain/Energy.sol/Energy.json'
+import { ENERGY_CONTRACT_ADDRESS } from '../../constants'
 
 const { getSigners, Contract } = ethers
 

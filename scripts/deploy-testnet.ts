@@ -21,14 +21,15 @@ async function main() {
   const [deployer] = await ethers.getSigners()
   console.log({ deployer: await deployer.getAddress() })
 
+  // Only for testnet! Vexchange doesn't seem to work on testnet.
   const verocket = dexs.find((dex) => dex.name === 'verocket')
-  const vexchange = dexs.find((dex) => dex.name === 'vexchange')
+  // const vexchange = dexs.find((dex) => dex.name === 'vexchange')
 
   if (verocket == null) throw new Error('Verocket not found')
-  if (vexchange == null) throw new Error('Vexchange not found')
+  // if (vexchange == null) throw new Error('Vexchange not found')
 
   const Trader = await ethers.getContractFactory('Trader')
-  const trader = await Trader.connect(deployer).deploy(vvet, [verocket.routerV2, vexchange.routerV2] as [
+  const trader = await Trader.connect(deployer).deploy(vvet, [verocket.routerV2, verocket.routerV2] as [
     Address,
     Address
   ])

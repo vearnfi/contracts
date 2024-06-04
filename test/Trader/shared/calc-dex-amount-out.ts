@@ -1,4 +1,4 @@
-import { UniswapV2Router02 } from '../../typechain-types'
+import { UniswapV2Router02 } from '../../../typechain-types'
 
 export async function calcDexAmountOut(
   routers: UniswapV2Router02[],
