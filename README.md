@@ -6,7 +6,7 @@ This repository contains a set of smart contracts associated with the Vearn prot
 
 Testnet
 
-Trader: 0x18558Ae54e703390C39F4Aa936659701D8da4B84
+Trader: 0xABb2556c9bbdd9d34e6fE2537fCbADF37C8865E2
 
 ## Overview
 
