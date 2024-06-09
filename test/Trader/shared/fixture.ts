@@ -5,7 +5,7 @@ import { ENERGY_CONTRACT_ADDRESS, PARAMS_CONTRACT_ADDRESS, SUPPORTED_DEXS_COUNT 
 import { Energy, Params, UniswapV2Factory, UniswapV2Pair, UniswapV2Router02 } from '../../../typechain-types'
 import * as energyArtifact from '../../../artifacts/contracts/vechain/Energy.sol/Energy.json'
 import * as paramsArtifact from '../../../artifacts/contracts/vechain/Params.sol/Params.json'
-import * as pairArtifact from '../../../artifacts/contracts/uniswap/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
+import * as pairArtifact from '../../../artifacts/contracts/verocket/v2-core/UniswapV2Pair.sol/UniswapV2Pair.json'
 import { expandTo18Decimals } from './expand-to-18-decimals'
 import { approveEnergy } from './approve-energy'
 
