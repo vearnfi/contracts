@@ -10,8 +10,8 @@ describe('Trader.withdrawFees', function () {
     const ownerBalanceVTHO_0 = await energy.balanceOf(owner.address)
 
     // Transfer some VTHO to the Trader contract
-    const deposit = expandTo18Decimals(5)
-    const tx1 = await energy.connect(alice).transfer(traderAddr, deposit)
+    const amount = expandTo18Decimals(5)
+    const tx1 = await energy.connect(alice).transfer(traderAddr, amount)
     await tx1.wait(1)
 
     // Act
@@ -21,7 +21,7 @@ describe('Trader.withdrawFees', function () {
     // Assert
     expect(await energy.balanceOf(traderAddr)).to.equal(0)
     expect(await energy.balanceOf(owner.address)).to.equal(
-      ownerBalanceVTHO_0 + deposit - (receipt2?.gasUsed || 0n) * baseGasPrice
+      ownerBalanceVTHO_0 + amount - (receipt2?.gasUsed || 0n) * baseGasPrice
     )
   })
 
@@ -42,11 +42,11 @@ describe('Trader.withdrawFees', function () {
     const { energy, trader, traderAddr, owner, alice } = await fixture()
 
     // Transfer some VTHO to the Trader contract
-    const deposit = expandTo18Decimals(5)
-    const tx1 = await energy.connect(alice).transfer(traderAddr, deposit)
+    const amount = expandTo18Decimals(5)
+    const tx1 = await energy.connect(alice).transfer(traderAddr, amount)
     await tx1.wait(1)
 
     // Act + assert
-    await expect(trader.connect(owner).withdrawFees()).to.emit(trader, 'WithdrawFees').withArgs(owner.address, deposit)
+    await expect(trader.connect(owner).withdrawFees()).to.emit(trader, 'WithdrawFees').withArgs(owner.address, amount)
   })
 })

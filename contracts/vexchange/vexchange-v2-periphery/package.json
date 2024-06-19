@@ -1,0 +1,40 @@
+{
+  "name": "@vexchange/v2-periphery",
+  "version": "1.1.0-beta.0",
+  "description": "🎚 Peripheral smart contracts for interacting with Vexchange V2",
+  "engines": {
+    "node": ">=10"
+  },
+  "homepage": "https://vexchange.io",
+  "files": [
+    "build",
+    "contracts"
+  ],
+  "devDependencies": {
+    "@types/chai": "^4.2.6",
+    "@types/mocha": "^5.2.7",
+    "chai": "^4.2.0",
+    "ethereum-waffle": "^2.4.1",
+    "ethereumjs-util": "^6.2.0",
+    "mocha": "^6.2.2",
+    "ncp": "^2.0.0",
+    "prettier": "^1.19.1",
+    "rimraf": "^3.0.0",
+    "solc": "0.6.6",
+    "ts-node": "^8.5.4",
+    "typescript": "^3.7.3"
+  },
+  "scripts": {
+    "lint": "prettier ./test/*.ts --check",
+    "lint:fix": "prettier ./test/*.ts --write",
+    "clean": "rimraf ./build/",
+    "copy-v1-artifacts": "ncp ./buildV1 ./build",
+    "precompile": "npm run clean",
+    "compile": "waffle .waffle.json",
+    "postcompile": "npm run copy-v1-artifacts",
+    "pretest": "npm run compile",
+    "test": "mocha",
+    "prepublishOnly": "npm run test"
+  },
+  "license": "GPL-3.0-or-later"
+}

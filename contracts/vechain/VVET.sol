@@ -4,7 +4,7 @@ import "./StakingModel.sol";
 import "../interfaces/IEnergy.sol";
 import "../interfaces/IVthoClaimable.sol";
 
-contract VVET9 is StakingModel, IVthoClaimable {
+contract VVET is StakingModel, IVthoClaimable {
     string public name = "Veiled VET";
     string public symbol = "VVET";
     uint8 public decimals = 18;
