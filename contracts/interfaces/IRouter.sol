@@ -1,5 +1,4 @@
-// pragma solidity >=0.6.2;
-pragma solidity =0.8.20;
+pragma solidity 0.8.20;
 
 interface IRouter {
   function WETH() external view returns (address);

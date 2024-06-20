@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
 import { IParams } from "./interfaces/IParams.sol";
 import { IRouter } from "./interfaces/IRouter.sol";
@@ -64,7 +63,7 @@ contract Trader is Roles {
    * @dev Estimated gas cost for executing a swap operation with an upper bound
    * of 0xfffffffffffffffffff for the withdrawAmount parameter (~75_557 VTHO).
    */
-  uint256 public constant SWAP_GAS = 285_819;
+  uint256 public constant SWAP_GAS = 269_111;
 
   /**
    * @dev Mapping of accounts to reserve balances.
@@ -108,7 +107,7 @@ contract Trader is Roles {
   );
 
   /**
-   * @dev Set contract's owner, available DEXs and current base gas price.
+   * @dev Set contract's owner and available DEXs, and fetch current base gas price.
    */
   constructor(IRouter[2] memory routers_) Roles(msg.sender) {
     routers = routers_;
@@ -203,7 +202,7 @@ contract Trader is Roles {
     // Make sure off-chain price oracle is close enough to the selected router output.
     require(amountOutExpected >= amountOutMin, "Trader: amount out expected too low");
 
-    // Approve the router to spend VTHO.
+    // Approve router to spend VTHO in behalf of the Trader contract.
     require(vtho.approve(address(router), amountIn), "Trader: approve failed");
 
     uint256[] memory amountsReceived = router.swapExactTokensForETH(
@@ -224,7 +223,7 @@ contract Trader is Roles {
       amountIn,
       amountOutMin,
       amountOutExpected,
-      amountsReceived[amountsReceived.length - 1]
+      amountsReceived[amountsReceived.length - 1] // amountOutReceived
     );
   }
 
