@@ -1,15 +1,15 @@
-import { UniswapV2Router02 } from '../../../typechain-types'
+import { IRouter } from '../../../typechain-types'
 
 export async function calcDexAmountOut(
-  routers: UniswapV2Router02[],
+  routers: IRouter[], // [verocketRouter, vexWrapper]
   energyAddr: string,
-  vvet9Addr: string,
   amountIn: bigint
 ): Promise<bigint> {
   let amountOut = BigInt(0)
 
   for (const router of routers) {
-    const amountsExpected = await router.getAmountsOut(amountIn, [energyAddr, vvet9Addr])
+    const weth = await router.WETH()
+    const amountsExpected = await router.getAmountsOut(amountIn, [energyAddr, weth])
 
     const amountOutExpected = amountsExpected[1]
 

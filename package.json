@@ -10,7 +10,7 @@
     "solhint": "npx solhint 'contracts/Trader.sol'",
     "slither": "slither .",
     "aderyn": "aderyn",
-    "deploy:testnet": "npx hardhat run scripts/deploy-testnet.ts --network vechain_testnet",
+    "deploy:testnet": "npx hardhat run scripts/deploy.ts --network vechain_testnet",
     "deploy:mainnet": "npx hardhat run scripts/deploy.ts --network vechain_mainnet"
   },
   "keywords": [],
@@ -27,7 +27,7 @@
     "@types/chai": "^4.3.11",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.11.17",
-    "@vearnfi/config": "^3.0.1",
+    "@vearnfi/config": "^4.0.2",
     "@vechain/hardhat-ethers": "^0.1.8",
     "@vechain/hardhat-vechain": "^0.1.8",
     "@vechain/hardhat-web3": "^0.1.8",

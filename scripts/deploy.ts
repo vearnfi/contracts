@@ -16,22 +16,17 @@ async function main() {
     return
   }
 
-  const { vvet, dexs } = getChainData(chainId as ChainId)
+  const { dexs, vexWrapper } = getChainData(chainId as ChainId)
 
   const [deployer] = await ethers.getSigners()
   console.log({ deployer: await deployer.getAddress() })
 
   const verocket = dexs.find((dex) => dex.name === 'verocket')
-  const vexchange = dexs.find((dex) => dex.name === 'vexchange')
 
   if (verocket == null) throw new Error('Verocket not found')
-  if (vexchange == null) throw new Error('Vexchange not found')
 
   const Trader = await ethers.getContractFactory('Trader')
-  const trader = await Trader.connect(deployer).deploy(vvet, [verocket.routerV2, vexchange.routerV2] as [
-    Address,
-    Address
-  ])
+  const trader = await Trader.connect(deployer).deploy([verocket.routerV2, vexWrapper] as [Address, Address])
 
   const receipt = await trader.waitForDeployment()
   console.log(JSON.stringify(receipt))

@@ -3,8 +3,9 @@ import { expect } from 'chai'
 import { fixture } from './shared/fixture'
 import { expandTo18Decimals } from './shared/expand-to-18-decimals'
 import { saveConfig } from './shared/save-config'
-import { approveEnergy } from './shared/approve-energy'
+import { approveToken } from './shared/approve-token'
 import { swap } from './shared/swap'
+import { setFeeMultiplier } from './shared/set-fee-multiplier'
 import { calcSwapFees } from './shared/calc-swap-fees'
 import { calcDexAmountOut } from './shared/calc-dex-amount-out'
 
@@ -24,60 +25,98 @@ const testCases: SwapTestCase[] = [
   { reserveBalance: expandTo18Decimals(5), withdrawAmount: BigInt('75557863725914323419135') }, // 0xfffffffffffffffffff
 ]
 
+const dexs = ['verocket', 'vexchange'] as const
+
+const fees = [0n, 10n, 30n] as const
+
 // TODO: test small withdrawAmount
 describe('Trader.swap', function () {
-  it('should exchange VTHO for VET when the method is called by the keeper', async () => {
-    // Arrange
-    const { energy, energyAddr, vvet9Addr, baseGasPrice, trader, traderAddr, SWAP_GAS, routers, keeper, alice } =
-      await fixture()
+  dexs.forEach((dex) => {
+    fees.forEach((fee) => {
+      it(`should exchange VTHO for VET with a fee of ${fee} using ${dex} when the method is called by the keeper`, async () => {
+        // Arrange
+        const {
+          energy,
+          energyAddr,
+          baseGasPrice,
+          trader,
+          traderAddr,
+          SWAP_GAS,
+          verocket,
+          vexWrapper,
+          owner,
+          keeper,
+          alice,
+          createVerocketPairVTHO_VET,
+          createVexchangePairVTHO_VET,
+        } = await fixture()
 
-    const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(500)
-    const amountOutMin = BigInt(100) // 100 wei VET
+        const vthoAmount = expandTo18Decimals(20000) // energy/vtho
+        const vetAmount = expandTo18Decimals(1000) // vvet9/wvet
+        const delta = expandTo18Decimals(100)
 
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
-    await saveConfig(trader, alice, reserveBalance)
+        const verocketPair = await createVerocketPairVTHO_VET({
+          vthoAmount,
+          vetAmount: dex === 'verocket' ? vetAmount + delta : vetAmount,
+        })
+        const vexchangePair = await createVexchangePairVTHO_VET({
+          vthoAmount,
+          vetAmount: dex === 'vexchange' ? vetAmount + delta : vetAmount,
+        })
 
-    const { amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-    const amountOut = await calcDexAmountOut(routers, energyAddr, vvet9Addr, amountIn)
+        await setFeeMultiplier(trader, owner, fee)
 
-    const aliceBalanceVET_0 = await provider.getBalance(alice.address)
-    const aliceBalanceVTHO_0 = await energy.balanceOf(alice.address)
+        const reserveBalance = expandTo18Decimals(5)
+        const withdrawAmount = expandTo18Decimals(500)
+        const amountOutMin = BigInt(100) // 100 wei VET
 
-    // Act
-    await swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)
+        await approveToken(energy, alice, traderAddr, MaxUint256)
+        await saveConfig(trader, alice, reserveBalance)
 
-    // Assert
-    const aliceBalanceVTHO_1 = await energy.balanceOf(alice.address)
-    expect(aliceBalanceVTHO_1).to.be.gte(aliceBalanceVTHO_0 - withdrawAmount)
+        const { amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
+        const amountOut = await calcDexAmountOut([verocket.router, vexWrapper.router], energyAddr, amountIn)
 
-    const aliceBalanceVET_1 = await provider.getBalance(alice.address)
-    expect(aliceBalanceVET_1).to.equal(aliceBalanceVET_0 + amountOut)
-  })
+        const aliceBalanceVET_0 = await provider.getBalance(alice.address)
+        const aliceBalanceVTHO_0 = await energy.balanceOf(alice.address)
 
-  // For some reason gasPrice cannot be overwritten when calling a method
-  // with a positive number of arguments: contract.foo(arg1, arg2, {gasPrice})
-  it.skip('should revert if tx gas price exceeds twice the base gas price', async () => {
-    // Arrange
-    const { baseGasPrice, trader, keeper, alice } = await fixture()
+        // Act
+        await swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)
 
-    const withdrawAmount = expandTo18Decimals(500)
-    const amountOutMin = BigInt(100)
-    const gasPrice = BigInt(2) * baseGasPrice + BigInt(1)
+        // Assert
+        const aliceBalanceVTHO_1 = await energy.balanceOf(alice.address)
+        expect(aliceBalanceVTHO_1).to.be.gte(aliceBalanceVTHO_0 - withdrawAmount)
 
-    // Act + assert
-    await expect(
-      trader.connect(keeper).swap(alice.address, withdrawAmount, amountOutMin, { gasPrice })
-    ).to.be.rejectedWith('execution reverted: Trader: gas price too high')
+        const aliceBalanceVET_1 = await provider.getBalance(alice.address)
+        expect(aliceBalanceVET_1).to.equal(aliceBalanceVET_0 + amountOut)
+
+        let reserves: { _reserve0: bigint; _reserve1: bigint } = { _reserve0: 0n, _reserve1: 0n }
+
+        if (dex === 'verocket') {
+          reserves = await verocketPair.getReserves()
+        } else if (dex === 'vexchange') {
+          reserves = await vexchangePair.getReserves()
+        }
+
+        expect(reserves._reserve0).to.equal(vthoAmount + amountIn)
+        expect(reserves._reserve1).to.equal(vetAmount + delta - amountOut)
+      })
+    })
   })
 
   it('should swap if the target account is a contract WITH a payable fallback function', async () => {
     // Arrange
-    const { energy, trader, traderAddr, keeper, alice } = await fixture()
+    const { energy, trader, traderAddr, keeper, alice, createVerocketPairVTHO_VET, createVexchangePairVTHO_VET } =
+      await fixture()
 
     const WithFallback = await getContractFactory('WithFallback', alice)
     const withFallback = await WithFallback.deploy(traderAddr)
     const withFallbackAddr = await withFallback.getAddress()
+
+    const vthoAmount = expandTo18Decimals(20000) // energy/vtho
+    const vetAmount = expandTo18Decimals(1000) // vvet9/wvet
+
+    await createVerocketPairVTHO_VET({ vthoAmount, vetAmount })
+    await createVexchangePairVTHO_VET({ vthoAmount, vetAmount })
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
@@ -102,11 +141,18 @@ describe('Trader.swap', function () {
 
   it('should revert if the target account is a contract WITHOUT a payable fallback function', async () => {
     // Arrange
-    const { energy, trader, traderAddr, keeper, alice } = await fixture()
+    const { energy, trader, traderAddr, keeper, alice, createVerocketPairVTHO_VET, createVexchangePairVTHO_VET } =
+      await fixture()
 
     const NoFallback = await getContractFactory('NoFallback', alice)
     const noFallback = await NoFallback.deploy(traderAddr)
     const noFallbackAddr = await noFallback.getAddress()
+
+    const vthoAmount = expandTo18Decimals(20000) // energy/vtho
+    const vetAmount = expandTo18Decimals(1000) // vvet9/wvet
+
+    await createVerocketPairVTHO_VET({ vthoAmount, vetAmount })
+    await createVexchangePairVTHO_VET({ vthoAmount, vetAmount })
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
@@ -131,8 +177,26 @@ describe('Trader.swap', function () {
   // For some reason we cannot match the error message on the expect statement
   it('should revert if amountOutMin is larger than the amountOut yielded by the DEX', async () => {
     // Arrange
-    const { energy, energyAddr, vvet9Addr, trader, traderAddr, baseGasPrice, routers, keeper, alice, SWAP_GAS } =
-      await fixture()
+    const {
+      energy,
+      energyAddr,
+      baseGasPrice,
+      trader,
+      traderAddr,
+      SWAP_GAS,
+      verocket,
+      vexWrapper,
+      keeper,
+      alice,
+      createVerocketPairVTHO_VET,
+      createVexchangePairVTHO_VET,
+    } = await fixture()
+
+    const vthoAmount = expandTo18Decimals(20000) // energy/vtho
+    const vetAmount = expandTo18Decimals(1000) // vvet9/wvet
+
+    await createVerocketPairVTHO_VET({ vthoAmount, vetAmount })
+    await createVexchangePairVTHO_VET({ vthoAmount, vetAmount })
 
     const reserveBalance = expandTo18Decimals(5)
     const withdrawAmount = expandTo18Decimals(500)
@@ -141,10 +205,10 @@ describe('Trader.swap', function () {
     // less or equal the withdrawAmount
 
     await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
+    await approveToken(energy, alice, traderAddr, MaxUint256)
 
     const { amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-    const amountOut = await calcDexAmountOut(routers, energyAddr, vvet9Addr, amountIn)
+    const amountOut = await calcDexAmountOut([verocket.router, vexWrapper.router], energyAddr, amountIn)
 
     const amountOutMin = amountOut + BigInt(1)
 
@@ -160,7 +224,7 @@ describe('Trader.swap', function () {
     const amountOutMin = BigInt(100)
 
     // Do NOT set reserveBalance
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
+    await approveToken(energy, alice, traderAddr, MaxUint256)
 
     // Act + assert
     await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith(
@@ -196,7 +260,7 @@ describe('Trader.swap', function () {
     const amountOutMin = BigInt(100)
 
     await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
+    await approveToken(energy, alice, traderAddr, MaxUint256)
 
     // Act + assert
     for (let k of [0, 1]) {
@@ -206,71 +270,104 @@ describe('Trader.swap', function () {
     }
   })
 
-  it('should emit a Swap event upon successful exchange', async () => {
-    // Arrange
-    const {
-      energy,
-      energyAddr,
-      vvet9Addr,
-      trader,
-      traderAddr,
-      baseGasPrice,
-      routers,
-      routersAddr,
-      keeper,
-      alice,
-      SWAP_GAS,
-    } = await fixture()
-
-    const reserveBalance = expandTo18Decimals(5)
-    const withdrawAmount = expandTo18Decimals(500)
-    // ^ baseGasPrice is 1e^15 2 orders of magnitude higher than on live networks
-    // therefore we need to increase the min withdrawAmount for the txFee to be
-    // less or equal the withdrawAmount
-    const amountOutMin = BigInt(100)
-
-    await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
-
-    const { txFee, protocolFee, amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-    const amountOut = await calcDexAmountOut(routers, energyAddr, vvet9Addr, amountIn)
-
-    function isValidRouter(router: string): boolean {
-      return routersAddr.includes(router)
-    }
-
-    // Act + assert
-    await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin))
-      .to.emit(trader, 'Swap')
-      .withArgs(
-        alice.address,
-        isValidRouter,
-        withdrawAmount,
-        baseGasPrice,
-        BigInt(30),
-        protocolFee,
-        withdrawAmount - txFee - protocolFee,
-        amountOutMin,
-        amountOut,
-        amountOut
-      )
-  })
-
-  testCases.forEach(({ reserveBalance, withdrawAmount }) => {
-    it('should spend no more than SWAP_GAS estimate', async () => {
+  dexs.forEach((dex) => {
+    it(`should emit a Swap event upon successful exchange using ${dex}`, async () => {
       // Arrange
-      const { energy, trader, traderAddr, keeper, alice, SWAP_GAS } = await fixture()
+      const {
+        energy,
+        energyAddr,
+        baseGasPrice,
+        trader,
+        traderAddr,
+        SWAP_GAS,
+        verocket,
+        vexWrapper,
+        keeper,
+        alice,
+        createVerocketPairVTHO_VET,
+        createVexchangePairVTHO_VET,
+      } = await fixture()
 
+      const vthoAmount = expandTo18Decimals(20000) // energy/vtho
+      const vetAmount = expandTo18Decimals(1000) // vvet9/wvet
+      const delta = expandTo18Decimals(100)
+
+      await createVerocketPairVTHO_VET({ vthoAmount, vetAmount: dex === 'verocket' ? vetAmount + delta : vetAmount })
+      await createVexchangePairVTHO_VET({ vthoAmount, vetAmount: dex === 'vexchange' ? vetAmount + delta : vetAmount })
+
+      const reserveBalance = expandTo18Decimals(5)
+      const withdrawAmount = expandTo18Decimals(500)
+      // ^ baseGasPrice is 1e^15 2 orders of magnitude higher than on live networks
+      // therefore we need to increase the min withdrawAmount for the txFee to be
+      // less or equal the withdrawAmount
       const amountOutMin = BigInt(100)
 
       await saveConfig(trader, alice, reserveBalance)
-      await approveEnergy(energy, alice, traderAddr, MaxUint256)
+      await approveToken(energy, alice, traderAddr, MaxUint256)
 
-      // Act
-      const swapReceipt = await swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)
+      const { txFee, protocolFee, amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
+      const amountOut = await calcDexAmountOut([verocket.router, vexWrapper.router], energyAddr, amountIn)
 
-      // Assert
-      expect(swapReceipt?.gasUsed).to.be.lte(SWAP_GAS)
+      function isValidRouter(router: string): boolean {
+        // return [verocket.routerAddr, vexWrapper.routerAddr].includes(router)
+        const routerAddr = dex === 'verocket' ? verocket.routerAddr : vexWrapper.routerAddr
+        return router === routerAddr
+      }
+
+      // Act + assert
+      await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin))
+        .to.emit(trader, 'Swap')
+        .withArgs(
+          alice.address,
+          isValidRouter,
+          withdrawAmount,
+          baseGasPrice,
+          BigInt(30),
+          protocolFee,
+          withdrawAmount - txFee - protocolFee,
+          amountOutMin,
+          amountOut,
+          amountOut
+        )
+    })
+  })
+
+  dexs.forEach((dex) => {
+    testCases.forEach(({ reserveBalance, withdrawAmount }) => {
+      it(`should spend no more than SWAP_GAS estimate using ${dex}`, async () => {
+        // Arrange
+        const {
+          energy,
+          trader,
+          traderAddr,
+          SWAP_GAS,
+          keeper,
+          alice,
+          createVerocketPairVTHO_VET,
+          createVexchangePairVTHO_VET,
+        } = await fixture()
+
+        const vthoAmount = expandTo18Decimals(20000) // energy/vtho
+        const vetAmount = expandTo18Decimals(1000) // vvet9/wvet
+        const delta = expandTo18Decimals(100)
+
+        await createVerocketPairVTHO_VET({ vthoAmount, vetAmount: dex === 'verocket' ? vetAmount + delta : vetAmount })
+        await createVexchangePairVTHO_VET({
+          vthoAmount,
+          vetAmount: dex === 'vexchange' ? vetAmount + delta : vetAmount,
+        })
+
+        const amountOutMin = BigInt(100)
+
+        await saveConfig(trader, alice, reserveBalance)
+        await approveToken(energy, alice, traderAddr, MaxUint256)
+
+        // Act
+        const swapReceipt = await swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)
+
+        // Assert
+        expect(swapReceipt?.gasUsed).to.be.lte(SWAP_GAS)
+      })
     })
   })
 
@@ -283,7 +380,7 @@ describe('Trader.swap', function () {
     const amountOutMin = BigInt(100)
 
     await saveConfig(trader, alice, reserveBalance)
-    await approveEnergy(energy, alice, traderAddr, MaxUint256)
+    await approveToken(energy, alice, traderAddr, MaxUint256)
 
     // Act + assert
     for (const signer of [owner, alice, bob]) {
@@ -291,5 +388,22 @@ describe('Trader.swap', function () {
         'execution reverted: Roles: account is not keeper'
       )
     }
+  })
+
+  it('should revert when both pools are empty event when amountOutMin is zero', async () => {
+    // Arrange
+    const { energy, trader, traderAddr, keeper, alice } = await fixture()
+
+    // Do NOT initialize pairs
+
+    const reserveBalance = expandTo18Decimals(5)
+    const withdrawAmount = expandTo18Decimals(500)
+    const amountOutMin = BigInt(0) // Keep it zero!
+
+    await approveToken(energy, alice, traderAddr, MaxUint256)
+    await saveConfig(trader, alice, reserveBalance)
+
+    // Act + assert
+    await expect(swap(trader, keeper, alice.address, withdrawAmount, amountOutMin)).to.be.rejectedWith('')
   })
 })

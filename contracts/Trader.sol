@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: Unlicense
+// SPDX-License-Identifier: MIT
 pragma solidity 0.8.20;
 
-import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 import { IEnergy } from "./interfaces/IEnergy.sol";
 import { IParams } from "./interfaces/IParams.sol";
+import { IRouter } from "./interfaces/IRouter.sol";
 import { Roles } from "./Roles.sol";
 
 /**
@@ -15,6 +15,9 @@ import { Roles } from "./Roles.sol";
  * - VTHO: An ERC20 token used as gas.
  * - VET: The native token, which generates VTHO at a constant rate of 5*10^-8 VTHO per VET per
  * block when held in an account or contract.
+ *
+ * This contract interacts with Vexchange via the VexWrapper contract in order to be able to
+ * use the original Uniswap interface.
  *
  * NOTICE: VeChain lacks access to on-chain price oracles. For this reason we make use of an
  * off-chain price feed to mitigate the possibility of a sandwich attack.
@@ -31,14 +34,9 @@ contract Trader is Roles {
   IParams public constant params = IParams(0x0000000000000000000000000000506172616D73);
 
   /**
-   * @dev Address of the VVET contract (equivalent to WETH).
+   * @dev Uniswap V2 routers: VeRocket and Vexchange (via VexWrapper).
    */
-  address public immutable vvet;
-
-  /**
-   * @dev List of addresses of UniswapV2 routers.
-   */
-  address[2] public routers;
+  IRouter[2] public routers;
 
   /**
    * @dev Denominator used to calculate the fee applied by the protocol.
@@ -65,7 +63,7 @@ contract Trader is Roles {
    * @dev Estimated gas cost for executing a swap operation with an upper bound
    * of 0xfffffffffffffffffff for the withdrawAmount parameter (~75_557 VTHO).
    */
-  uint256 public constant SWAP_GAS = 285_819;
+  uint256 public constant SWAP_GAS = 269_111;
 
   /**
    * @dev Mapping of accounts to reserve balances.
@@ -109,11 +107,9 @@ contract Trader is Roles {
   );
 
   /**
-   * @dev Initialize the contract by setting the contract's owner, the address of the VVET contract,
-   * the list of available DEXs, and the current base gas price.
+   * @dev Set contract's owner and available DEXs, and fetch current base gas price.
    */
-  constructor(address vvet_, address[2] memory routers_) Roles(msg.sender) {
-    vvet = vvet_;
+  constructor(IRouter[2] memory routers_) Roles(msg.sender) {
     routers = routers_;
     fetchBaseGasPrice();
   }
@@ -200,16 +196,13 @@ contract Trader is Roles {
     // Notice: This could potentially throw if fees > withdrawAmount.
     uint256 amountIn = withdrawAmount - txFee - protocolFee;
 
-    address[] memory path = new address[](2);
-    path[0] = address(vtho);
-    path[1] = vvet;
-
-    (IUniswapV2Router02 router, uint256 amountOutExpected) = _selectRouter(path, amountIn);
+    // Select the router that yields the best output.
+    (IRouter router, address[] memory path, uint256 amountOutExpected) = _selectRouter(amountIn);
 
     // Make sure off-chain price oracle is close enough to the selected router output.
     require(amountOutExpected >= amountOutMin, "Trader: amount out expected too low");
 
-    // Approve the router to spend VTHO.
+    // Approve router to spend VTHO in behalf of the Trader contract.
     require(vtho.approve(address(router), amountIn), "Trader: approve failed");
 
     uint256[] memory amountsReceived = router.swapExactTokensForETH(
@@ -220,7 +213,7 @@ contract Trader is Roles {
       block.timestamp // We can set this value when creating the tx
     );
 
-		emit Swap(
+    emit Swap(
       account,
       address(router),
       withdrawAmount,
@@ -230,12 +223,12 @@ contract Trader is Roles {
       amountIn,
       amountOutMin,
       amountOutExpected,
-      amountsReceived[amountsReceived.length - 1]
+      amountsReceived[amountsReceived.length - 1] // amountOutReceived
     );
   }
 
   /**
-   * @dev Validate the withdrawal amount against the current account balance and reserve balance.
+   * @dev Validate the withdrawal amount against the current account and reserve balances.
    */
   function _validateWithdrawAmount(address account, uint256 withdrawAmount) internal view {
     uint256 reserveBalance = reserves[account];
@@ -249,14 +242,22 @@ contract Trader is Roles {
    * @dev Select the router that yields the best output from the list of available routers.
    */
   function _selectRouter(
-    address[] memory path,
     uint256 amountIn
-  ) internal view returns (IUniswapV2Router02, uint256) {
-    uint256 routerIndex = 0;
+  ) internal view returns (IRouter, address[] memory, uint256) {
+    IRouter selectedRouter;
+
+    address[] memory path = new address[](2);
+    path[0] = address(vtho);
+    // path[1] will depend on the router being used.
+    // VeRocket uses the 'official' VVET implementation,
+    // while Vexchange relies on its own version called WVET.
+
     uint256 amountOut = 0;
 
     for (uint256 i = 0; i < routers.length; i++) {
-      IUniswapV2Router02 router = IUniswapV2Router02(routers[i]);
+      IRouter router = routers[i];
+
+      path[1] = router.WETH();
 
       uint256[] memory amountsExpected = router.getAmountsOut(
         amountIn,
@@ -266,12 +267,14 @@ contract Trader is Roles {
       uint256 amountOutExpected = amountsExpected[1];
 
       if (amountOutExpected > amountOut) {
-        routerIndex = i;
+        selectedRouter = routers[i];
         amountOut = amountOutExpected;
       }
     }
 
-    return (IUniswapV2Router02(routers[routerIndex]), amountOut);
+    path[1] = selectedRouter.WETH();
+
+    return (selectedRouter, path, amountOut);
   }
 
   // This contract cannot receive VET through regular transactions and throws an exception.
