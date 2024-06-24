@@ -74,7 +74,7 @@ describe('Trader.swap', function () {
         await saveConfig(trader, alice, reserveBalance)
 
         const { amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-        const amountOut = await calcDexAmountOut([verocket.router, vexWrapper.router], energyAddr, amountIn)
+        const amountOut = await calcDexAmountOut([verocket.router, vexWrapper], energyAddr, amountIn)
 
         const aliceBalanceVET_0 = await provider.getBalance(alice.address)
         const aliceBalanceVTHO_0 = await energy.balanceOf(alice.address)
@@ -208,7 +208,7 @@ describe('Trader.swap', function () {
     await approveToken(energy, alice, traderAddr, MaxUint256)
 
     const { amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-    const amountOut = await calcDexAmountOut([verocket.router, vexWrapper.router], energyAddr, amountIn)
+    const amountOut = await calcDexAmountOut([verocket.router, vexWrapper], energyAddr, amountIn)
 
     const amountOutMin = amountOut + BigInt(1)
 
@@ -282,6 +282,7 @@ describe('Trader.swap', function () {
         SWAP_GAS,
         verocket,
         vexWrapper,
+        vexWrapperAddr,
         keeper,
         alice,
         createVerocketPairVTHO_VET,
@@ -306,12 +307,14 @@ describe('Trader.swap', function () {
       await approveToken(energy, alice, traderAddr, MaxUint256)
 
       const { txFee, protocolFee, amountIn } = await calcSwapFees(trader, SWAP_GAS, baseGasPrice, withdrawAmount)
-      const amountOut = await calcDexAmountOut([verocket.router, vexWrapper.router], energyAddr, amountIn)
+      const amountOut = await calcDexAmountOut([verocket.router, vexWrapper], energyAddr, amountIn)
 
       function isValidRouter(router: string): boolean {
-        // return [verocket.routerAddr, vexWrapper.routerAddr].includes(router)
-        const routerAddr = dex === 'verocket' ? verocket.routerAddr : vexWrapper.routerAddr
-        return router === routerAddr
+        const mapping: Record<string, string> = {
+          verocket: verocket.routerAddr,
+          vexchange: vexWrapperAddr,
+        }
+        return router === mapping[dex]
       }
 
       // Act + assert

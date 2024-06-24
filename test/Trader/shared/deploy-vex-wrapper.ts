@@ -11,14 +11,11 @@ type Params = {
 }
 
 export async function deployVexWrapper({ deployer, vexchange }: Params) {
-  const Router = await getContractFactory('VexWrapper', deployer)
-  const router = await Router.deploy(vexchange.routerAddr)
-  const routerAddr = await router.getAddress()
+  const VexWrapper = await getContractFactory('VexWrapper', deployer)
+  const vexWrapper = await VexWrapper.deploy(vexchange.routerAddr)
+  const vexWrapperAddr = await vexWrapper.getAddress()
 
-  expect(await provider.getCode(routerAddr)).not.to.have.length(0)
+  expect(await provider.getCode(vexWrapperAddr)).not.to.have.length(0)
 
-  return {
-    router,
-    routerAddr,
-  }
+  return { vexWrapper, vexWrapperAddr }
 }

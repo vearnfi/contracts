@@ -21,18 +21,10 @@ export async function deployVexchange({ deployer, wethAddr }: Params) {
 
   expect(await provider.getCode(routerAddr)).not.to.have.length(0)
 
-  const VexWrapper = await getContractFactory('VexWrapper', deployer)
-  const vexWrapper = await VexWrapper.deploy(routerAddr)
-  const vexWrapperAddr = await vexWrapper.getAddress()
-
-  expect(await provider.getCode(vexWrapperAddr)).not.to.have.length(0)
-
   return {
     factory,
     factoryAddr,
     router,
     routerAddr,
-    vexWrapper,
-    vexWrapperAddr,
   }
 }

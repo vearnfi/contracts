@@ -7,18 +7,18 @@ const { getContractFactory } = ethers
 describe('Trader.constructor', function () {
   it('should set the constructor args to the supplied values', async function () {
     // Arrange
-    const { energyAddr, verocket, vexWrapper, owner } = await fixture()
+    const { energyAddr, verocket, vexWrapperAddr, owner } = await fixture()
 
     // Act
     const Trader = await getContractFactory('Trader', owner)
-    const trader = await Trader.deploy([verocket.routerAddr, vexWrapper.routerAddr] as [Address, Address])
+    const trader = await Trader.deploy([verocket.routerAddr, vexWrapperAddr] as [Address, Address])
 
     // Assert
     expect(await trader.FEE_PRECISION()).to.equal(10_000)
     expect(await trader.MAX_FEE_MULTIPLIER()).to.equal(30)
     expect(await trader.vtho()).to.equal(energyAddr)
     expect(await trader.routers(0)).to.equal(verocket.routerAddr)
-    expect(await trader.routers(1)).to.equal(vexWrapper.routerAddr)
+    expect(await trader.routers(1)).to.equal(vexWrapperAddr)
     expect(await trader.isOwner(owner.address)).to.equal(true)
     expect(await trader.feeMultiplier()).to.equal(30)
     expect(await trader.baseGasPrice()).to.equal(BigInt(1e15))
