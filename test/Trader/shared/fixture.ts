@@ -41,12 +41,13 @@ export async function fixture() {
 
   const verocket = await deployVerocket({ deployer: god, wethAddr: vvet9Addr })
   const vexchange = await deployVexchange({ deployer: god, wethAddr: wvetAddr })
-  const vexWrapper = await deployVexWrapper({ deployer: god, vexchange })
+
+  const { vexWrapper, vexWrapperAddr } = await deployVexWrapper({ deployer: god, vexchange })
 
   const { trader, traderAddr, SWAP_GAS } = await deployTrader({
     owner,
     keeper,
-    routersAddr: [verocket.routerAddr, vexWrapper.routerAddr],
+    routersAddr: [verocket.routerAddr, vexWrapperAddr],
   })
 
   // Burn all VET from all test accounts in order to avoid changes in VTHO balance
@@ -77,6 +78,7 @@ export async function fixture() {
     verocket,
     vexchange,
     vexWrapper,
+    vexWrapperAddr,
     trader,
     traderAddr,
     SWAP_GAS,
