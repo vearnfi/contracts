@@ -4,9 +4,7 @@ This repository contains a set of smart contracts associated with the Vearn prot
 
 ## Addresses
 
-Trader contract address:
-
-| Network | Address                                    |
+| Network | Trader Address                                    |
 |---------|--------------------------------------------|
 | Testnet | `0x3147E73FADDF17c186BdE71E8B4c19A462aa85c7` |
 | Mainnet | `0xff3C6dABd0DCaF77363d59fDBC52939073f88014` |
